@@ -1,1 +1,1 @@
-https://github.com/HAJIHYUK/CafeHRProject.git
+개인 카페 근태,월급 계산 프로그램
