@@ -2,6 +2,7 @@ plugins {
 	id 'java'
 	id 'org.springframework.boot' version '3.4.3'
 	id 'io.spring.dependency-management' version '1.1.7'
+	id 'war'
 }
 
 group = 'com.example'
@@ -17,6 +18,7 @@ configurations {
 	compileOnly {
 		extendsFrom annotationProcessor
 	}
+	providedRuntime
 }
 
 repositories {
@@ -27,10 +29,17 @@ dependencies {
 	implementation 'org.springframework.boot:spring-boot-starter-data-jpa'
 	implementation 'org.springframework.boot:spring-boot-starter-security'
 	implementation 'org.springframework.boot:spring-boot-starter-web'
+	
 	// https://mvnrepository.com/artifact/org.apache.tomcat/tomcat-jasper
 	implementation 'org.apache.tomcat:tomcat-jasper:11.0.5'
-	// https://mvnrepository.com/artifact/javax.servlet/jstl
-	implementation 'javax.servlet:jstl:1.2'
+	// JSTL 의존성 업데이트 - Jakarta EE 9+ 호환
+	// https://mvnrepository.com/artifact/jakarta.servlet.jsp.jstl/jakarta.servlet.jsp.jstl-api
+	implementation 'jakarta.servlet.jsp.jstl:jakarta.servlet.jsp.jstl-api:3.0.0'
+	// https://mvnrepository.com/artifact/org.glassfish.web/jakarta.servlet.jsp.jstl
+	implementation 'org.glassfish.web:jakarta.servlet.jsp.jstl:3.0.1'
+	
+	// 구버전 JSTL - 필요시 활성화 (Jakarta EE 8 이하용)
+	// implementation 'javax.servlet:jstl:1.2'
 
 	compileOnly 'org.projectlombok:lombok'
 	developmentOnly 'org.springframework.boot:spring-boot-devtools'
@@ -39,8 +48,14 @@ dependencies {
 	testImplementation 'org.springframework.boot:spring-boot-starter-test'
 	testImplementation 'org.springframework.security:spring-security-test'
 	testRuntimeOnly 'org.junit.platform:junit-platform-launcher'
+	implementation 'org.springframework.boot:spring-boot-starter-validation'
+	providedRuntime 'org.springframework.boot:spring-boot-starter-tomcat'
 }
 
 tasks.named('test') {
 	useJUnitPlatform()
+}
+
+bootWar {
+	archiveFileName = 'cafeHR.war'
 }
