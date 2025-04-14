@@ -9,6 +9,7 @@ import lombok.Setter;
 @Setter
 @NoArgsConstructor
 @AllArgsConstructor
+// 급여 계산
 public class SalaryCalculationDto {
     private Long employeeId; // 직원 ID
     private String month; // yyyy-MM 형식(예: 2023-05)

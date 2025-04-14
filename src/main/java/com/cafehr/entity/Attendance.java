@@ -56,9 +56,13 @@ public class Attendance {
     @UpdateTimestamp
     private LocalDateTime updatedAt;
 
-    // 근무 시간 (자동 계산)
+    // 총근무 시간 (자동 계산)
     @Column(name = "total_hours", nullable = true)
     private BigDecimal totalHours;
+
+    // 실제 근무 시간
+    @Column(name = "actual_working_hours", nullable = true)
+    private BigDecimal actualWorkingHours;
 
     // 출근 시간 설정
     public void setCheckIn(LocalDateTime checkIn) {

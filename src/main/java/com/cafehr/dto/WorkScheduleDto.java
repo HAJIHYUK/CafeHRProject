@@ -13,6 +13,7 @@ import lombok.Setter;
 @Setter
 @NoArgsConstructor
 @AllArgsConstructor
+// 근무 일정 등록
 public class WorkScheduleDto {
     
     // 근무 일정 ID 
@@ -33,6 +34,8 @@ public class WorkScheduleDto {
     // 근무 종료 시간
     @NotNull(message = "종료 시간은 필수입니다")
     private LocalTime endTime;
-
+    
+    // 휴게 시간 
+    private LocalTime breakTime;
     
 }

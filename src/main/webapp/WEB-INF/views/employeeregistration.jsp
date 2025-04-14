@@ -415,7 +415,15 @@
                     return;
                 }
                 
-                addScheduleForm();
+                // 선택된 요일 목록 저장
+                const selectedDaysCopy = {...selectedDays};
+                
+                // 일정 폼 추가
+                addScheduleForm(selectedDaysCopy);
+                
+                // 요일 선택 초기화
+                $('.modal-day-button').removeClass('active');
+                selectedDays = {};
             });
             
             // 근무 일정 항목 삭제 버튼 이벤트
@@ -426,11 +434,6 @@
             // 모달 내 일정 저장 버튼 클릭 이벤트
             $('#saveScheduleBtn').click(function() {
                 const scheduleItems = $('.schedule-item');
-                
-                if (Object.keys(selectedDays).length === 0) {
-                    alert('근무 요일을 하나 이상 선택해주세요.');
-                    return;
-                }
                 
                 if (scheduleItems.length === 0) {
                     alert('근무 일정을 하나 이상 추가해주세요.');
@@ -456,17 +459,55 @@
                         return false; // jquery each 루프 종료
                     }
                     
-                    Object.keys(selectedDays).forEach(day => {
+                    // 저장된 요일 데이터 가져오기
+                    let scheduleDays = [];
+                    try {
+                        const daysJson = $(this).find('.selected-days-data').val();
+                        scheduleDays = JSON.parse(daysJson);
+                    } catch (e) {
+                        console.error('요일 데이터 파싱 오류:', e);
+                    }
+                    
+                    if (scheduleDays.length === 0) {
+                        alert('일정에 적용될 요일이 없습니다.');
+                        isValid = false;
+                        return false;
+                    }
+                    
+                    // 각 요일별로 일정 생성
+                    scheduleDays.forEach(day => {
+                        const breakHoursInput = $(this).find('.schedule-break-hours');
+                        const breakMinutesInput = $(this).find('.schedule-break-minutes');
+                        
+                        // 유효성 검사
+                        const isHoursValid = validateBreakTime(breakHoursInput[0], 'hours');
+                        const isMinutesValid = validateBreakTime(breakMinutesInput[0], 'minutes');
+                        
+                        if (!isHoursValid || !isMinutesValid) {
+                            isValid = false;
+                            return false; // 루프 종료
+                        }
+                        
+                        const breakHours = parseInt(breakHoursInput.val() || 0);
+                        const breakMinutes = parseInt(breakMinutesInput.val() || 0);
+                        
+                        // HH:MM 형식의 문자열로 변환 (백엔드의 LocalTime 형식에 맞춤)
+                        const breakTime = (breakHours > 0 || breakMinutes > 0) ? 
+                            String(breakHours).padStart(2, '0') + ':' + String(breakMinutes).padStart(2, '0') : null;
+                        
                         workSchedules.push({
                             employeeId: window.registeredEmployeeId,
                             workDay: day,
                             startTime: startTime,
-                            endTime: endTime
+                            endTime: endTime,
+                            breakTime: breakTime
                         });
                     });
                 });
                 
                 if (!isValid) return;
+                
+                console.log('서버로 전송할 근무 일정:', workSchedules);
                 
                 // 근무 일정 등록 AJAX 요청
                 $.ajax({
@@ -531,11 +572,32 @@
                         let errorMessage = '근무 일정 등록에 실패했습니다.';
                         
                         try {
-                            const response = JSON.parse(xhr.responseText);
-                            if (response.message) {
-                                errorMessage = response.message;
+                            // 응답이 JSON 형식인 경우
+                            if (xhr.responseJSON && xhr.responseJSON.message) {
+                                errorMessage = xhr.responseJSON.message;
+                            } 
+                            // 응답 텍스트가 있는 경우
+                            else if (xhr.responseText) {
+                                try {
+                                    const response = JSON.parse(xhr.responseText);
+                                    if (response.message) {
+                                        errorMessage = response.message;
+                                    }
+                                } catch (e) {
+                                    // JSON 파싱 실패 - 서버 오류 메시지 그대로 표시
+                                    if (xhr.responseText.includes('Exception')) {
+                                        const startIndex = xhr.responseText.indexOf('Exception:');
+                                        if (startIndex !== -1) {
+                                            errorMessage = xhr.responseText.substring(startIndex + 10);
+                                        } else {
+                                            errorMessage = xhr.responseText;
+                                        }
+                                    }
+                                }
                             }
-                        } catch (e) { }
+                        } catch (e) { 
+                            console.error('응답 파싱 오류:', e);
+                        }
                         
                         // 기존 화면은 유지하고 알림창으로만 오류 메시지 표시
                         alert(errorMessage);
@@ -544,12 +606,46 @@
                     }
                 });
             });
+
+            // 시간 유효성 검사 함수 추가
+            window.validateBreakTime = function(input, type) {
+                const value = parseInt(input.value) || 0;
+                const errorElement = $(input).siblings('.break-' + type + '-error');
+                let isValid = true;
+                
+                if (type === 'hours') {
+                    if (value < 0 || value > 23) {
+                        errorElement.show();
+                        isValid = false;
+                    } else {
+                        errorElement.hide();
+                    }
+                } else if (type === 'minutes') {
+                    if (value < 0 || value > 59) {
+                        errorElement.show();
+                        isValid = false;
+                    } else {
+                        errorElement.hide();
+                    }
+                }
+                
+                if (!isValid) {
+                    // 잘못된 값이 입력되면 유효한 범위 내 값으로 설정
+                    if (type === 'hours') {
+                        input.value = Math.min(23, Math.max(0, value));
+                    } else if (type === 'minutes') {
+                        input.value = Math.min(59, Math.max(0, value));
+                    }
+                }
+                
+                return isValid;
+            };
         });
         
         // 근무 일정 폼 추가 함수
-        function addScheduleForm() {
+        function addScheduleForm(selectedDaysCopy) {
             const scheduleId = 'schedule_' + Date.now();
-            const activeDays = Object.keys(selectedDays);
+            const activeDays = Object.keys(selectedDaysCopy);
             
             let scheduleHTML = '<div class="schedule-item card mb-3" id="' + scheduleId + '">';
             scheduleHTML += '<div class="card-body">';
@@ -562,21 +658,45 @@
             scheduleHTML += '<div class="col-md-6">';
             scheduleHTML += '<div class="form-group">';
             scheduleHTML += '<label class="form-label">시작 시간 <span class="text-danger">*</span></label>';
-            scheduleHTML += '<input type="time" class="form-control schedule-start-time" required>';
+            scheduleHTML += '<input type="time" class="form-control schedule-start-time" value="09:00" required>';
             scheduleHTML += '</div>';
             scheduleHTML += '</div>';
             
             scheduleHTML += '<div class="col-md-6">';
             scheduleHTML += '<div class="form-group">';
             scheduleHTML += '<label class="form-label">종료 시간 <span class="text-danger">*</span></label>';
-            scheduleHTML += '<input type="time" class="form-control schedule-end-time" required>';
+            scheduleHTML += '<input type="time" class="form-control schedule-end-time" value="18:00" required>';
             scheduleHTML += '</div>';
             scheduleHTML += '</div>';
             scheduleHTML += '</div>';
             
             scheduleHTML += '<div class="mt-3">';
+            scheduleHTML += '<label class="form-label">휴게 시간</label>';
+            scheduleHTML += '<div class="row">';
+            scheduleHTML += '<div class="col-md-3">';
+            scheduleHTML += '<div class="form-group">';
+            scheduleHTML += '<label class="form-label">시간</label>';
+            scheduleHTML += '<input type="number" class="form-control schedule-break-hours" min="0" max="23" step="1" value="0" onchange="validateBreakTime(this, \'hours\')">';
+            scheduleHTML += '<div class="text-danger break-hours-error" style="display:none;">시간은 0-23 사이의 값만 입력 가능합니다.</div>';
+            scheduleHTML += '</div>';
+            scheduleHTML += '</div>';
+            scheduleHTML += '<div class="col-md-3">';
+            scheduleHTML += '<div class="form-group">';
+            scheduleHTML += '<label class="form-label">분</label>';
+            scheduleHTML += '<input type="number" class="form-control schedule-break-minutes" min="0" max="59" step="1" value="30" onchange="validateBreakTime(this, \'minutes\')">';
+            scheduleHTML += '<div class="text-danger break-minutes-error" style="display:none;">분은 0-59 사이의 값만 입력 가능합니다.</div>';
+            scheduleHTML += '</div>';
+            scheduleHTML += '</div>';
+            scheduleHTML += '</div>';
+            scheduleHTML += '<div class="form-text">휴게 시간을 입력하면 근무 시간 계산에 반영됩니다.</div>';
+            scheduleHTML += '</div>';
+            
+            scheduleHTML += '<div class="mt-3">';
             scheduleHTML += '<label class="form-label">적용 요일</label>';
             scheduleHTML += '<div class="d-flex flex-wrap gap-2">';
+            
+            // 일정에 적용될 요일 데이터 속성 추가
+            scheduleHTML += '<input type="hidden" class="selected-days-data" value=\'' + JSON.stringify(activeDays) + '\'>';
             
             activeDays.forEach(day => {
                 const dayName = {
@@ -723,7 +843,7 @@
                 resultHTML += '<hr>';
                 resultHTML += '<h5 class="mt-3 mb-3" style="color: #ff9900; font-size: 1.3rem; font-weight: bold;"><i class="fas fa-calendar-alt me-2"></i>등록된 근무 일정</h5>';
                 resultHTML += '<div class="table-responsive"><table class="table table-bordered" style="border: 2px solid #ff9900;">';
-                resultHTML += '<thead style="background-color: #fff8ec;"><tr><th style="width: 30%;">요일</th><th>근무 시간</th></tr></thead>';
+                resultHTML += '<thead style="background-color: #fff8ec;"><tr><th style="width: 25%;">요일</th><th style="width: 40%;">근무 시간</th><th>휴게 시간</th></tr></thead>';
                 resultHTML += '<tbody>';
                 
                 const dayMap = {
@@ -793,6 +913,50 @@
                         } else {
                             resultHTML += '<td>시간 정보 없음</td>';
                         }
+                        
+                        // 휴게시간 표시 추가
+                        resultHTML += '<td>';
+                        if (schedule.breakTime) {
+                            let breakTimeStr;
+                            
+                            if (Array.isArray(schedule.breakTime)) {
+                                // 배열인 경우 시간과 분을 추출하여 포맷팅
+                                const hours = schedule.breakTime[0] || 0;
+                                const minutes = schedule.breakTime[1] || 0;
+                                
+                                if (hours > 0 || minutes > 0) {
+                                    breakTimeStr = '';
+                                    if (hours > 0) breakTimeStr += hours + '시간 ';
+                                    if (minutes > 0) breakTimeStr += minutes + '분';
+                                } else {
+                                    breakTimeStr = '없음';
+                                }
+                            } else if (typeof schedule.breakTime === 'string') {
+                                // 문자열인 경우 (HH:MM 형식)
+                                const parts = schedule.breakTime.split(':');
+                                if (parts.length >= 2) {
+                                    const hours = parseInt(parts[0]);
+                                    const minutes = parseInt(parts[1]);
+                                    
+                                    if (hours > 0 || minutes > 0) {
+                                        breakTimeStr = '';
+                                        if (hours > 0) breakTimeStr += hours + '시간 ';
+                                        if (minutes > 0) breakTimeStr += minutes + '분';
+                                    } else {
+                                        breakTimeStr = '없음';
+                                    }
+                                } else {
+                                    breakTimeStr = schedule.breakTime;
+                                }
+                            } else {
+                                breakTimeStr = '없음';
+                            }
+                            
+                            resultHTML += '<i class="fas fa-coffee me-2" style="color: #ff9900;"></i>' + breakTimeStr;
+                        } else {
+                            resultHTML += '<i class="fas fa-coffee me-2" style="color: #ff9900;"></i>없음';
+                        }
+                        resultHTML += '</td>';
                         
                         resultHTML += '</tr>';
                     });

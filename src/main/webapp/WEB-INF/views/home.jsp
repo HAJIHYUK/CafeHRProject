@@ -157,9 +157,49 @@
             margin-top: -5px;
             margin-bottom: 15px;
         }
+        
+        /* 로그아웃 버튼 스타일 */
+        .logout-btn {
+            position: fixed;
+            top: 20px;
+            right: 20px;
+            background-color: #dc3545;
+            color: white;
+            border: none;
+            border-radius: 8px;
+            padding: 10px 15px;
+            font-weight: bold;
+            font-size: 14px;
+            cursor: pointer;
+            transition: all 0.3s ease;
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            z-index: 1000;
+            box-shadow: 0 2px 4px rgba(0,0,0,0.2);
+        }
+        
+        .logout-btn:hover {
+            background-color: #c82333;
+            transform: translateY(-2px);
+            box-shadow: 0 4px 8px rgba(0,0,0,0.2);
+        }
+        
+        .logout-btn i {
+            font-size: 16px;
+        }
     </style>
 </head>
 <body>
+    <!-- 로그인 상태일 때만 로그아웃 버튼 표시 -->
+    <c:if test="${isLoggedIn}">
+        <form action="/logout" method="post" style="margin: 0; padding: 0;">
+            <button type="submit" class="logout-btn">
+                <i class="fas fa-sign-out-alt"></i> 로그아웃 (${username})
+            </button>
+        </form>
+    </c:if>
+    
     <div class="container">
         <div class="logo">
             <div style="position: relative; height: 390px; margin-bottom: 10px; margin-top: -30px; width: 100%;">
@@ -173,7 +213,7 @@
                     <h2 class="check-in-title"><i class="fas fa-sign-in-alt"></i> 출근 체크</h2>
                     <p>사원번호 입력 후 출근 체크</p>
                     <div class="check-in-form">
-                        <input type="number" id="employeeId" class="check-in-input" placeholder="사원번호 입력">
+                        <input type="text" id="employeeCode" class="check-in-input" placeholder="사원번호 입력">
                         <button id="checkInBtn" class="check-in-btn">출근</button>
                     </div>
                 </div>
@@ -184,7 +224,7 @@
                     <h2 class="check-in-title" style="color: #2196F3;"><i class="fas fa-sign-out-alt"></i> 퇴근 체크</h2>
                     <p>사원번호 입력 후 퇴근 체크</p>
                     <div class="check-in-form">
-                        <input type="number" id="checkOutEmployeeId" class="check-in-input" placeholder="사원번호 입력">
+                        <input type="text" id="checkOutEmployeeCode" class="check-in-input" placeholder="사원번호 입력">
                         <button id="checkOutBtn" class="check-in-btn check-out-btn">퇴근</button>
                     </div>
                 </div>
@@ -195,7 +235,7 @@
                     <h2 class="check-in-title" style="color: #FFA000;"><i class="fas fa-sticky-note"></i> 메모 확인</h2>
                     <p>사원번호 입력 후 메모 확인</p>
                     <div class="check-in-form">
-                        <input type="number" id="memoEmployeeId" class="check-in-input" placeholder="사원번호 입력">
+                        <input type="text" id="memoEmployeeCode" class="check-in-input" placeholder="사원번호 입력">
                         <button id="checkMemoBtn" class="check-in-btn memo-btn">메모</button>
                     </div>
                 </div>
@@ -228,55 +268,27 @@
     <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.2.3/dist/js/bootstrap.bundle.min.js"></script>
     <script>
         document.getElementById('checkInBtn').addEventListener('click', async function() {
-            const employeeId = document.getElementById('employeeId').value;
+            const employeeCode = document.getElementById('employeeCode').value;
             
-            if (!employeeId) {
+            if (!employeeCode) {
                 alert('사원번호를 입력해주세요.');
                 return;
             }
             
             try {
-                console.log('출근 체크 시작:', employeeId);
+                console.log('출근 체크 시작:', employeeCode);
                 
-                // 먼저 직원이 존재하는지 확인
-                const employeeResponse = await fetch(`/api/employees`);
-                if (!employeeResponse.ok) {
-                    throw new Error('직원 정보를 가져오는 중 오류가 발생했습니다.');
-                }
-                
-                const employees = await employeeResponse.json();
-                const employee = employees.find(e => e.id == employeeId);
-                
-                if (!employee) {
-                    throw new Error('해당 사원번호의 직원을 찾을 수 없습니다.');
-                }
-                
-                // 직원이 확인되면 출근 기록 생성
-                const response = await fetch(`/api/attendance/check-in/\${employeeId}`, {
+                const response = await fetch(`/api/attendance/check-in/\${employeeCode}`, {
                     method: 'POST'
                 });
                 
                 if (!response.ok) {
-                    const errorText = await response.text();
-                    console.error('API 오류 응답:', errorText);
-                    
-                    try {
-                        // JSON 파싱 시도
-                        const errorJson = JSON.parse(errorText);
-                        if (errorJson && errorJson.message) {
-                            alert(errorJson.message);
-                            document.getElementById('employeeId').value = '';
-                            return; // 함수 종료
-                        }
-                    } catch (e) {
-                        // 파싱 실패 시 - 이전 로직 사용
-                        if (errorText.includes('이미 오늘 출근하셨습니다')) {
-                            alert(`\${employee.name}님은 이미 오늘 출근하셨습니다.`);
-                            document.getElementById('employeeId').value = '';
-                            return; // 함수 종료
-                        }
+                    const errorData = await response.json();
+                    if (errorData && errorData.message) {
+                        alert(errorData.message);
+                        document.getElementById('employeeCode').value = '';
+                        return;
                     }
-                    
                     throw new Error(`출근 체크 중 오류가 발생했습니다. (상태: \${response.status})`);
                 }
                 
@@ -290,14 +302,8 @@
                 const seconds = now.getSeconds().toString().padStart(2, '0');
                 const checkInTime = `\${hours}시 \${minutes}분 \${seconds}초`;
                 
-                // 디버깅용 로그
-                console.log('현재 시간으로 포맷:', checkInTime);
-                
-                // 알림창 표시
-                const memo = employee.memo ? `\n\n메모: \${employee.memo}` : '';
-                
-                alert(`\${employee.name}님 \${checkInTime}에 출근하셨습니다.\${memo}`);
-                document.getElementById('employeeId').value = '';
+                alert(`\${data.name}님 \${checkInTime}에 출근하셨습니다.`);
+                document.getElementById('employeeCode').value = '';
                 
             } catch (error) {
                 console.error('출근 체크 오류:', error);
@@ -306,53 +312,28 @@
         });
         
         document.getElementById('checkOutBtn').addEventListener('click', async function() {
-            const employeeId = document.getElementById('checkOutEmployeeId').value;
+            const employeeCode = document.getElementById('checkOutEmployeeCode').value;
             
-            if (!employeeId) {
+            if (!employeeCode) {
                 alert('사원번호를 입력해주세요.');
                 return;
             }
             
             try {
-                console.log('퇴근 체크 시작:', employeeId);
+                console.log('퇴근 체크 시작:', employeeCode);
                 
-                // 먼저 직원이 존재하는지 확인
-                const employeeResponse = await fetch(`/api/employees`);
-                if (!employeeResponse.ok) {
-                    throw new Error('직원 정보를 가져오는 중 오류가 발생했습니다.');
-                }
-                
-                const employees = await employeeResponse.json();
-                const employee = employees.find(e => e.id == employeeId);
-                
-                if (!employee) {
-                    throw new Error('해당 사원번호의 직원을 찾을 수 없습니다.');
-                }
-                
-                // 직원이 확인되면 퇴근 기록 생성
-                const response = await fetch(`/api/attendance/check-out/\${employeeId}`, {
-                    method: 'PUT',
-                    headers: {
-                        'Content-Type': 'application/json'
-                    }
+                const response = await fetch(`/api/attendance/check-out/\${employeeCode}`, {
+                    method: 'PUT'
                 });
                 
                 if (!response.ok) {
-                    const errorText = await response.text();
-                    console.error('API 오류 응답:', errorText);
-                    
-                    try {
-                        // JSON 파싱 시도
-                        const errorJson = JSON.parse(errorText);
-                        if (errorJson && errorJson.message) {
-                            alert(errorJson.message);
-                            document.getElementById('checkOutEmployeeId').value = '';
-                            return; // 함수 종료
-                        }
-                    } catch (e) {
-                        // 파싱 실패 시
-                        throw new Error(`퇴근 체크 중 오류가 발생했습니다. (상태: \${response.status})`);
+                    const errorData = await response.json();
+                    if (errorData && errorData.message) {
+                        alert(errorData.message);
+                        document.getElementById('checkOutEmployeeCode').value = '';
+                        return;
                     }
+                    throw new Error(`퇴근 체크 중 오류가 발생했습니다. (상태: \${response.status})`);
                 }
                 
                 const data = await response.json();
@@ -365,12 +346,8 @@
                 const seconds = now.getSeconds().toString().padStart(2, '0');
                 const checkOutTime = `\${hours}시 \${minutes}분 \${seconds}초`;
                 
-                // 디버깅용 로그
-                console.log('현재 시간으로 포맷:', checkOutTime);
-                
-                // 알림창 표시
-                alert(`\${employee.name}님 \${checkOutTime}에 퇴근하셨습니다.`);
-                document.getElementById('checkOutEmployeeId').value = '';
+                alert(`\${data.name}님 \${checkOutTime}에 퇴근하셨습니다.`);
+                document.getElementById('checkOutEmployeeCode').value = '';
                 
             } catch (error) {
                 console.error('퇴근 체크 오류:', error);
@@ -380,33 +357,25 @@
         
         // 메모 확인 버튼 기능
         document.getElementById('checkMemoBtn').addEventListener('click', async function() {
-            const employeeId = document.getElementById('memoEmployeeId').value;
+            const employeeCode = document.getElementById('memoEmployeeCode').value;
             
-            if (!employeeId) {
+            if (!employeeCode) {
                 alert('사원번호를 입력해주세요.');
                 return;
             }
             
             try {
-                console.log('메모 확인 시작:', employeeId);
-                
-                // 먼저 직원이 존재하는지 확인
-                const employeeResponse = await fetch(`/api/employees`);
-                if (!employeeResponse.ok) {
-                    throw new Error('직원 정보를 가져오는 중 오류가 발생했습니다.');
+                const response = await fetch(`/api/employees/memo/\${employeeCode}`);
+                if (!response.ok) {
+                    const errorData = await response.json();
+                    throw new Error(errorData.message || '직원 정보를 찾을 수 없습니다.');
                 }
                 
-                const employees = await employeeResponse.json();
-                const employee = employees.find(e => e.id == employeeId);
+                const employeeMemo = await response.json();
+                window.location.href = `/employeememo/\${employeeMemo.id}`;
                 
-                if (!employee) {
-                    throw new Error('해당 사원번호의 직원을 찾을 수 없습니다.');
-                }
-                
-                // 직원이 확인되면 메모 페이지로 이동
-                window.location.href = `/employeememo/\${employeeId}`;
             } catch (error) {
-                alert('오류: ' + error.message);
+                alert(error.message);
                 console.error('오류 발생:', error);
             }
         });

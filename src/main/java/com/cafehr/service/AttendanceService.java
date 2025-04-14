@@ -11,6 +11,7 @@ import org.springframework.transaction.annotation.Transactional;
 import com.cafehr.dto.AttendanceAddByAdminDto;
 import com.cafehr.dto.AttendanceHourDto;
 import com.cafehr.dto.AttendanceModifyDto;
+import com.cafehr.dto.AttendanceUpdateActualHoursDto;
 import com.cafehr.entity.Attendance;
 import com.cafehr.entity.Employee;
 import com.cafehr.repository.AttendanceRepository;
@@ -31,8 +32,8 @@ public class AttendanceService {
     
     // 출근 기록 생성
     @Transactional
-    public AttendanceHourDto recordAttendance(Long employeeId) {
-        Employee employee = employeeRepository.findById(employeeId)
+    public AttendanceHourDto recordAttendance(String employeeCode) {
+        Employee employee = employeeRepository.findByEmployeeCode(employeeCode)
             .orElseThrow(() -> new IllegalArgumentException("존재하지 않는 직원입니다."));
 
         if(employee.isActive() == false) {
@@ -45,7 +46,7 @@ public class AttendanceService {
         LocalDateTime endOfDay = today.atTime(23, 59, 59);
         
         // 오늘 이미 출근 기록이 있는지 확인
-        if (attendanceRepository.existsByEmployeeIdAndCheckInBetween(employeeId, startOfDay, endOfDay)) {
+        if (attendanceRepository.existsByEmployeeEmployeeCodeAndCheckInBetween(employeeCode, startOfDay, endOfDay)) {
             throw new IllegalStateException(employee.getName() + "님은 이미 오늘 출근하셨습니다.");
         }
         
@@ -68,6 +69,19 @@ public class AttendanceService {
         return attendanceHourDto;
     }
 
+    //출근 기록 관리자 임의 생성 (다중)
+    @Transactional
+    public List<AttendanceHourDto> recordAttendanceByAdminMultiple(List<AttendanceAddByAdminDto> attendanceList) {
+        List<AttendanceHourDto> resultList = new ArrayList<>();
+        
+        for (AttendanceAddByAdminDto dto : attendanceList) {
+            AttendanceHourDto result = recordAttendanceByAdmin(dto);
+            resultList.add(result);
+        }
+        
+        return resultList;
+    }
+
     //출근 기록 관리자 임의 생성
     @Transactional
     public AttendanceHourDto recordAttendanceByAdmin(AttendanceAddByAdminDto attendanceAddByAdminDto) {
@@ -79,6 +93,7 @@ public class AttendanceService {
         attendance.setCheckIn(attendanceAddByAdminDto.getCheckIn());
         attendance.setCheckOutWithoutCalculation(attendanceAddByAdminDto.getCheckOut());
         attendance.setTotalHours(attendanceAddByAdminDto.getTotalHours());
+        attendance.setActualWorkingHours(attendanceAddByAdminDto.getActualWorkingHours());
         attendance.setModified(true);
         attendance.setUpdatedAt(LocalDateTime.now());
 
@@ -89,19 +104,18 @@ public class AttendanceService {
         attendanceHourDto.setAttendanceId(attendance.getId());
         attendanceHourDto.setName(employee.getName());
         attendanceHourDto.setCheckIn(attendance.getCheckIn());
-        attendanceHourDto.setCheckOut(attendance.getCheckOut());
+        attendanceHourDto.setCheckOut(attendance.getCheckOut());    
+        attendanceHourDto.setActualWorkingHours(attendance.getActualWorkingHours());
+        attendanceHourDto.setTotalHours(attendance.getTotalHours());
+
 
         return attendanceHourDto;
-
     }
-
-
-
 
     // 퇴근 기록 생성
     @Transactional
-    public AttendanceHourDto recordCheckOut(Long employeeId) {
-        Employee employee = employeeRepository.findById(employeeId)
+    public AttendanceHourDto recordCheckOut(String employeeCode) {
+        Employee employee = employeeRepository.findByEmployeeCode(employeeCode)
             .orElseThrow(() -> new IllegalArgumentException("존재하지 않는 직원입니다."));
             
         if(employee.isActive() == false) {
@@ -114,7 +128,7 @@ public class AttendanceService {
         LocalDateTime endOfDay = today.atTime(23, 59, 59);  
 
         // 오늘의 출근 기록 조회
-        Attendance todayAttendance = attendanceRepository.findByEmployeeIdAndCheckInBetween(employeeId, startOfDay, endOfDay)
+        Attendance todayAttendance = attendanceRepository.findByEmployeeEmployeeCodeAndCheckInBetween(employeeCode, startOfDay, endOfDay)
             .orElseThrow(() -> new IllegalStateException(employee.getName() + "님의 출근 기록을 찾을 수 없습니다."));
 
         // 이미 퇴근 기록이 있는지 확인
@@ -151,6 +165,7 @@ public class AttendanceService {
             dto.setCheckIn(attendance.getCheckIn());
             dto.setCheckOut(attendance.getCheckOut());
             dto.setTotalHours(attendance.getTotalHours());
+            dto.setActualWorkingHours(attendance.getActualWorkingHours());
             dtoList.add(dto);
         }
         
@@ -171,6 +186,7 @@ public class AttendanceService {
             dto.setCheckIn(attendance.getCheckIn());
             dto.setCheckOut(attendance.getCheckOut());
             dto.setTotalHours(attendance.getTotalHours());
+            dto.setActualWorkingHours(attendance.getActualWorkingHours());
             dtoList.add(dto);
         }
 
@@ -192,6 +208,7 @@ public class AttendanceService {
             dto.setCheckIn(attendance.getCheckIn());
             dto.setCheckOut(attendance.getCheckOut());
             dto.setTotalHours(attendance.getTotalHours());
+            dto.setActualWorkingHours(attendance.getActualWorkingHours());
             dtoList.add(dto);
         }
 
@@ -211,6 +228,7 @@ public class AttendanceService {
             dto.setCheckIn(attendance.getCheckIn());
             dto.setCheckOut(attendance.getCheckOut());
             dto.setTotalHours(attendance.getTotalHours());
+            dto.setActualWorkingHours(attendance.getActualWorkingHours());
             dtoList.add(dto);
         }
         
@@ -233,6 +251,7 @@ public class AttendanceService {
                 dto.setCheckIn(attendance.getCheckIn());
                 dto.setCheckOut(attendance.getCheckOut());
                 dto.setTotalHours(attendance.getTotalHours());
+                dto.setActualWorkingHours(attendance.getActualWorkingHours());
                 dtoList.add(dto);
             }
         }
@@ -256,6 +275,7 @@ public class AttendanceService {
                 dto.setCheckIn(attendance.getCheckIn());
                 dto.setCheckOut(attendance.getCheckOut());
                 dto.setTotalHours(attendance.getTotalHours());
+                dto.setActualWorkingHours(attendance.getActualWorkingHours());
                 dtoList.add(dto);
             }
         }
@@ -285,6 +305,11 @@ public class AttendanceService {
         if (attendanceModifyDto.getTotalHours() != null) {
             attendance.setTotalHours(attendanceModifyDto.getTotalHours());
         };
+
+        // 4. 실제 근무시간 설정 ( 자동계산 없음 )
+        if (attendanceModifyDto.getActualWorkingHours() != null) {
+            attendance.setActualWorkingHours(attendanceModifyDto.getActualWorkingHours());
+        };
         
         attendance.setModified(true);
         attendanceRepository.save(attendance);
@@ -297,6 +322,7 @@ public class AttendanceService {
         updatedAttendanceHourDto.setCheckIn(attendance.getCheckIn());
         updatedAttendanceHourDto.setCheckOut(attendance.getCheckOut());
         updatedAttendanceHourDto.setTotalHours(attendance.getTotalHours());
+        updatedAttendanceHourDto.setActualWorkingHours(attendance.getActualWorkingHours());
         return updatedAttendanceHourDto;
             
     }
@@ -309,7 +335,21 @@ public class AttendanceService {
     }
 
 
-    
+    // 선택된 함옥 근무시간 변경 (다중,단일)
+    @Transactional
+    public void updateActualWorkingHours(List<AttendanceUpdateActualHoursDto> attendanceUpdateActualHoursDtoList) {
+        
+        for(AttendanceUpdateActualHoursDto dto : attendanceUpdateActualHoursDtoList) {
+            Attendance attendance = attendanceRepository.findById(dto.getAttendanceId())
+                .orElseThrow(() -> new IllegalArgumentException("존재하지 않는 출근 기록입니다."));
+            
+            attendance.setActualWorkingHours(dto.getActualWorkingHours());
+            attendanceRepository.save(attendance);
+        }
+            
+            
+    }
+            
 
 
 

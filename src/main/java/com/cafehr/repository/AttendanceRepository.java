@@ -22,6 +22,12 @@ public interface AttendanceRepository extends JpaRepository<Attendance, Long> {
      */
     boolean existsByEmployeeIdAndCheckInBetween(Long employeeId, LocalDateTime startOfDay, LocalDateTime endOfDay);
 
+    // 사원 번호로 출근 기록 존재 여부 확인
+    boolean existsByEmployeeEmployeeCodeAndCheckInBetween(String employeeCode, LocalDateTime startOfDay, LocalDateTime endOfDay);
+
+    // 사원 번호로 오늘의 출근 기록 조회
+    Optional<Attendance> findByEmployeeEmployeeCodeAndCheckInBetween(String employeeCode, LocalDateTime startOfDay, LocalDateTime endOfDay);
+
     /**
      * 특정 직원의 퇴근 기록 존재 여부를 확인합니다.
      * 

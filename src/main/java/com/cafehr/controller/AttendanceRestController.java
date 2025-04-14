@@ -18,6 +18,7 @@ import org.springframework.web.bind.annotation.RestController;
 import com.cafehr.dto.AttendanceAddByAdminDto;
 import com.cafehr.dto.AttendanceHourDto;
 import com.cafehr.dto.AttendanceModifyDto;
+import com.cafehr.dto.AttendanceUpdateActualHoursDto;
 import com.cafehr.service.AttendanceService;
 
 import jakarta.validation.Valid;
@@ -32,10 +33,10 @@ public class AttendanceRestController {
 
 
     // 사원 번호 입력시 출근 기록 생성
-    @PostMapping("/attendance/check-in/{employeeId}")
-    public ResponseEntity<?> checkIn(@PathVariable("employeeId") Long employeeId) {
+    @PostMapping("/attendance/check-in/{employeeCode}")
+    public ResponseEntity<?> checkIn(@PathVariable("employeeCode") String employeeCode) {
         try {
-            AttendanceHourDto attendanceHourDto = attendanceService.recordAttendance(employeeId);
+            AttendanceHourDto attendanceHourDto = attendanceService.recordAttendance(employeeCode);
             return new ResponseEntity<>(attendanceHourDto, HttpStatus.OK);
         } catch (IllegalArgumentException | IllegalStateException e) {
             // 오류 메시지를 JSON 형식으로 반환 (message 속성 사용)
@@ -54,11 +55,18 @@ public class AttendanceRestController {
         return new ResponseEntity<>(attendanceHourDto,HttpStatus.OK);
     }
 
+    // 관리자가 임의로 만드는 출근 기록 다중 생성
+    @PostMapping("/attendance/check-in/admin/multiple")
+    public ResponseEntity<?> checkInByAdminMultiple(@Valid @RequestBody List<AttendanceAddByAdminDto> attendanceList) {
+        List<AttendanceHourDto> results = attendanceService.recordAttendanceByAdminMultiple(attendanceList);
+        return new ResponseEntity<>(results, HttpStatus.OK);
+    }
+
     // 사원 번호 입력시 퇴근 기록 생성
-    @PutMapping("/attendance/check-out/{employeeId}")
-    public ResponseEntity<?> checkOut(@PathVariable("employeeId") Long employeeId) {
+    @PutMapping("/attendance/check-out/{employeeCode}")
+    public ResponseEntity<?> checkOut(@PathVariable("employeeCode") String employeeCode) {
         try {
-            AttendanceHourDto attendanceHourDto = attendanceService.recordCheckOut(employeeId);
+            AttendanceHourDto attendanceHourDto = attendanceService.recordCheckOut(employeeCode);
             return new ResponseEntity<>(attendanceHourDto, HttpStatus.OK);
         } catch (IllegalArgumentException | IllegalStateException e) {
             // 오류 메시지를 JSON 형식으로 반환 (message 속성 사용)
@@ -126,6 +134,14 @@ public class AttendanceRestController {
     public ResponseEntity<?> deleteAttendance(@PathVariable("attendanceId") Long attendanceId) {
         attendanceService.deleteAttendance(attendanceId);
         return new ResponseEntity<>(String.format("출근 기록 ID %d 삭제 완료", attendanceId), HttpStatus.OK);
+    }
+
+
+    // 선택된 함옥 근무시간 변경 (다중,단일)
+    @PutMapping("/attendance/update-actual-working-hours")
+    public ResponseEntity<?> updateActualWorkingHours(@RequestBody List<AttendanceUpdateActualHoursDto> attendanceUpdateActualHoursDtoList) {
+        attendanceService.updateActualWorkingHours(attendanceUpdateActualHoursDtoList);
+        return new ResponseEntity<>(HttpStatus.OK);
     }
 
 }

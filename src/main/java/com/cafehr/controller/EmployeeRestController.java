@@ -56,14 +56,25 @@ public class EmployeeRestController {
     // 사원 정보 수정
     @PutMapping("/employees/modify/{id}")
     public ResponseEntity<?> updateEmployee(@PathVariable("id") Long id, @RequestBody Employee dto) {
-        Employee updatedEmployee = employeeService.updateEmployee(id, dto);
-        return new ResponseEntity<>(updatedEmployee, HttpStatus.OK);
+        try {
+            Employee updatedEmployee = employeeService.updateEmployee(id, dto);
+            return new ResponseEntity<>(updatedEmployee, HttpStatus.OK);
+        } catch (IllegalArgumentException e) {
+            return new ResponseEntity<>(Map.of("message", e.getMessage()), HttpStatus.BAD_REQUEST);
+        }
     }
 
     // 메모 수정 프론트에서 "{"memo":"123"} 형식으로 보내야함  " "
     @PatchMapping("/employees/memo/{id}")
     public ResponseEntity<?> updateMemo(@PathVariable("id") Long id, @RequestBody Map<String, String> memoMap) {
         Employee updatedEmployee = employeeService.updateMemo(id, memoMap.get("memo"));
+        return new ResponseEntity<>(updatedEmployee, HttpStatus.OK);
+    }
+
+    // 특이사항 메모 수정 프론트에서 "{"specialMemo":"123"} 형식으로 보내야함  " "
+    @PatchMapping("/employees/specialMemo/{id}")
+    public ResponseEntity<?> updateSpecialMemo(@PathVariable("id") Long id, @RequestBody Map<String, String> specialMemoMap) {
+        Employee updatedEmployee = employeeService.updateSpecialMemo(id, specialMemoMap.get("specialMemo"));
         return new ResponseEntity<>(updatedEmployee, HttpStatus.OK);
     }
     
@@ -75,10 +86,14 @@ public class EmployeeRestController {
     }
 
     // 직원 메모 조회
-    @GetMapping("/employees/memo/{id}")
-    public ResponseEntity<?> getEmployeeMemo(@PathVariable("id") Long id) {
-        EmployeeMemoDto employeeMemo = employeeService.getEmployeeMemo(id);
-        return new ResponseEntity<>(employeeMemo, HttpStatus.OK);
+    @GetMapping("/employees/memo/{employeeCode}")
+    public ResponseEntity<?> getEmployeeMemo(@PathVariable("employeeCode") String employeeCode) {
+        try {
+            EmployeeMemoDto employeeMemo = employeeService.getEmployeeMemo(employeeCode);
+            return new ResponseEntity<>(employeeMemo, HttpStatus.OK);
+        } catch (IllegalArgumentException e) {
+            return new ResponseEntity<>(Map.of("message", e.getMessage()), HttpStatus.NOT_FOUND);
+        }
     }
 
 }

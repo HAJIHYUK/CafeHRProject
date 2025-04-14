@@ -47,7 +47,9 @@ public class WorkSchedule {
     @Column(name = "end_time", nullable = false)
     private LocalTime endTime; // 근무 종료 시간
 
-
+    // 휴게시간
+    @Column(name = "break_time", nullable = true)
+    private LocalTime breakTime; // 휴게시간
 
 
 }

@@ -2,6 +2,7 @@ package com.cafehr.controller;
 
 import java.math.BigDecimal;
 import java.util.List;
+import java.util.Map;
 
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
@@ -56,14 +57,48 @@ public class SalaryController {
         return new ResponseEntity<>(salary, HttpStatus.OK);
     }
     
-
     //특정 월의 모든 직원 급여 합계 조회
     @GetMapping("/total/{month}")
     public ResponseEntity<BigDecimal> getTotalSalaryByMonth(@PathVariable("month") String month) {
         BigDecimal totalSalary = salaryService.getTotalSalaryByMonth(month);
         return ResponseEntity.ok(totalSalary);
     }
+    
+    // 특정 월의 모든 직원 급여 일괄 계산
+    @PostMapping("/calculate-all/{month}")
+    public ResponseEntity<?> calculateAllSalariesForMonth(@PathVariable("month") String month) {
+        try {
+            List<Salary> calculatedSalaries = salaryService.calculateAllSalariesForMonth(month);
+            return new ResponseEntity<>(calculatedSalaries, HttpStatus.OK);
+        } catch (IllegalStateException e) {
+            return new ResponseEntity<>(Map.of("message", e.getMessage()), HttpStatus.BAD_REQUEST);
+        } catch (Exception e) {
+            return new ResponseEntity<>(Map.of("message", "급여 일괄 계산 중 오류가 발생했습니다: " + e.getMessage()), 
+                    HttpStatus.INTERNAL_SERVER_ERROR);
+        }
+    }
 
-
+    // 근무 일정 기반 예상 급여 계산
+    @PostMapping("/expected")
+    public ResponseEntity<?> calculateExpectedSalary(@RequestBody SalaryCalculationDto calculationDto) {
+        try {
+            // 입력값 검증
+            if (calculationDto.getEmployeeId() == null) {
+                return new ResponseEntity<>(Map.of("message", "직원 ID가 비어있습니다."), HttpStatus.BAD_REQUEST);
+            }
+            
+            if (calculationDto.getMonth() == null || calculationDto.getMonth().trim().isEmpty()) {
+                return new ResponseEntity<>(Map.of("message", "급여 계산 월이 비어있습니다."), HttpStatus.BAD_REQUEST);
+            }
+            
+            return ResponseEntity.ok(salaryService.calculateExpectedSalary(
+                calculationDto.getEmployeeId(), calculationDto.getMonth()));
+        } catch (IllegalArgumentException e) {
+            return new ResponseEntity<>(Map.of("message", e.getMessage()), HttpStatus.BAD_REQUEST);
+        } catch (Exception e) {
+            return new ResponseEntity<>(Map.of("message", "예상 급여 계산 중 오류가 발생했습니다: " + e.getMessage()), 
+                    HttpStatus.INTERNAL_SERVER_ERROR);
+        }
+    }
 
 } 

@@ -28,10 +28,15 @@ import lombok.Setter;
 @NoArgsConstructor
 public class Employee {
 
+    //직원 고유 번호
 	@Id
     @GeneratedValue(strategy = GenerationType.IDENTITY)
     private Long id;
-    
+
+    //직원용 사원번호(출퇴근,메모보기)
+    @Column(name = "employee_code", nullable = true, unique = true, length = 20)
+    private String employeeCode;
+
     //직원 이름
     @Column(name = "name", nullable = false)
     private String name;
@@ -52,6 +57,11 @@ public class Employee {
     //직원별 메모
     @Column(name = "memo", nullable = true, length = 2000)
     private String memo;
+
+    //직원별 특이사항 메모
+    @Column(name = "special_memo", nullable = true, length = 2000)
+    private String specialMemo;
+
 
     //활성 상태 (TRUE: 근무 중, FALSE: 퇴사)
     @Column(name = "is_active", nullable = false, columnDefinition = "BOOLEAN DEFAULT TRUE")

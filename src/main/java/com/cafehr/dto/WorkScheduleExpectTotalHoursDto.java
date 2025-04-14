@@ -12,6 +12,7 @@ import lombok.Setter;
 @Setter
 @NoArgsConstructor
 @AllArgsConstructor
+// 근무 일정 예상 총 근무 시간 조회
 public class WorkScheduleExpectTotalHoursDto {
 
 

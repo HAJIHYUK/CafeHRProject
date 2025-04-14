@@ -23,8 +23,14 @@ public interface EmployeeRepository extends JpaRepository<Employee, Long> {
     // 전체 직원 조회
     List<Employee> findAll();
     
+    // 사원 번호로 직원 1명 조회
+    Optional<Employee> findByEmployeeCode(String employeeCode);
+
+    // 활성 상태인 직원 목록 조회 (퇴사하지 않은 직원)
+    List<Employee> findByActiveTrue();
 
     
+
 
  
 } 

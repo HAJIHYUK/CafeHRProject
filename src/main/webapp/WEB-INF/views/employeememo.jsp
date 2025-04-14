@@ -108,7 +108,7 @@
         <div id="employeeInfoContainer" class="employee-info" style="display: none;">
             <div class="row">
                 <div class="col-md-6">
-                    <p><span class="label">사번:</span> <span id="employeeId"></span></p>
+                    <p><span class="label">사원번호:</span> <span id="employeeCode"></span></p>
                     <p><span class="label">이름:</span> <span id="employeeName"></span></p>
                 </div>
                 <div class="col-md-6">
@@ -154,7 +154,7 @@
                 type: 'GET',
                 success: function(employee) {
                     // 직원 정보 표시
-                    $('#employeeId').text(employee.id);
+                    $('#employeeCode').text(employee.employeeCode || '-');
                     $('#employeeName').text(employee.name);
                     $('#employeeRole').text(translateRole(employee.role));
                     $('#employeeStatus').text(employee.isActive ? '재직 중' : '퇴직');

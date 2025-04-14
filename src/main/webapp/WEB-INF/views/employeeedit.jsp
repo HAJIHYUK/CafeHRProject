@@ -154,7 +154,7 @@
                     <div class="modal-body text-center">
                         <p>저장되었습니다. 직원 정보 수정이 완료되었습니다.</p>
                     </div>
-                    <div class="modal-footer justify-content-center">
+                    <div class="modal-footer justify-content-center">   
                         <button type="button" class="btn btn-primary" id="goToListBtn">확인</button>
                     </div>
                 </div>
@@ -175,6 +175,14 @@
                     <div class="form-group">
                         <label for="name">이름 *</label>
                         <input type="text" id="name" class="form-control" required>
+                    </div>
+                </div>
+                
+                <div class="form-row">
+                    <div class="form-group">
+                        <label for="employeeCode">출퇴근용 사원번호</label>
+                        <input type="text" id="employeeCode" class="form-control" placeholder="출퇴근용 사원번호 입력">
+                        <small class="text-muted">직원의 출퇴근용 사원번호를 입력하세요. (선택사항)</small>
                     </div>
                 </div>
                 
@@ -217,6 +225,14 @@
                         <label for="memo"><i class="fas fa-sticky-note"></i> 직원 메모</label>
                         <textarea id="memo" class="form-control" rows="8"></textarea>
                         <small class="text-muted">직원에 대한 중요 메모나 특이사항을 기록하세요.</small>
+                    </div>
+                </div>
+                
+                <div class="form-row">
+                    <div class="form-group memo-container">
+                        <label for="specialMemo"><i class="fas fa-exclamation-circle"></i> 특이사항 메모</label>
+                        <textarea id="specialMemo" class="form-control" rows="5"></textarea>
+                        <small class="text-muted">직원의 특별한 상황이나 관리자만 볼 수 있는 특이사항을 기록하세요.</small>
                     </div>
                 </div>
                 
@@ -270,7 +286,9 @@
                     role: $('#role').val(),
                     hourlyWage: $('#hourlyWage').val(),
                     isActive: $('#isActive').val() === 'true',
-                    memo: $('#memo').val().trim()
+                    memo: $('#memo').val().trim(),
+                    specialMemo: $('#specialMemo').val().trim(),
+                    employeeCode: $('#employeeCode').val().trim() || null
                 };
                 
                 // 비밀번호가 입력된 경우에만 추가
@@ -340,6 +358,8 @@
                         $('#hourlyWage').val(employee.hourlyWage);
                         $('#isActive').val(employee.isActive ? 'true' : 'false');
                         $('#memo').val(employee.memo);
+                        $('#specialMemo').val(employee.specialMemo);
+                        $('#employeeCode').val(employee.employeeCode || '');
                         
                         // 로딩 오버레이 숨기기
                         $('#loadingOverlay').hide();

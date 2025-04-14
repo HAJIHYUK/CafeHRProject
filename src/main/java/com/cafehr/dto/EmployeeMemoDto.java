@@ -9,8 +9,10 @@ import lombok.Setter;
 @Setter
 @NoArgsConstructor
 @AllArgsConstructor
+// 직원 메모 조회
 public class EmployeeMemoDto {
     private Long id;
+    private String employeeCode;
     private String memo;
 
     

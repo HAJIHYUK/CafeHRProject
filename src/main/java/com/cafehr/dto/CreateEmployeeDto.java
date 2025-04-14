@@ -18,6 +18,7 @@ import lombok.ToString;
 @AllArgsConstructor
 @NoArgsConstructor
 @ToString
+// 직원 등록
 public class CreateEmployeeDto {
 
     @NotBlank(message = "이름은 필수입니다")

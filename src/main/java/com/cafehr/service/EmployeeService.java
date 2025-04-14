@@ -58,7 +58,20 @@ public class EmployeeService {
         log.info("Updating employee with ID: {}", id);
         
         Employee existingEmployee = employeeRepository.findById(id)
-            .orElseThrow(() -> new IllegalArgumentException("존재하지 않는 직원입니다."));
+            .orElseThrow(() -> new IllegalArgumentException("존재하지 않는 직원입니다. ID: " + id));
+        
+        // 사원번호 중복 체크
+        if (updatedEmployee.getEmployeeCode() != null) {
+            // 모든 직원을 조회하여 사원번호 중복 체크
+            List<Employee> allEmployees = employeeRepository.findAll();
+            for (Employee employee : allEmployees) {
+                // 자기 자신은 제외하고 체크
+                if (!employee.getId().equals(id) && 
+                    updatedEmployee.getEmployeeCode().equals(employee.getEmployeeCode())) {
+                    throw new IllegalArgumentException("중복된 출퇴근용 사번이 있습니다. 출퇴근용 사번은 중복이 안됩니다.");
+                }
+            }
+        }
         
         // 메모만 업데이트하는 경우 (다른 필드가 null인 경우)
         if (updatedEmployee.getMemo() != null && 
@@ -76,6 +89,10 @@ public class EmployeeService {
             existingEmployee.setName(updatedEmployee.getName());
         }
         
+        if (updatedEmployee.getEmployeeCode() != null) {
+            existingEmployee.setEmployeeCode(updatedEmployee.getEmployeeCode());
+        }
+
         if (updatedEmployee.getHourlyWage() != null) {
             existingEmployee.setHourlyWage(updatedEmployee.getHourlyWage());
         }
@@ -92,6 +109,11 @@ public class EmployeeService {
         if (updatedEmployee.getPassword() != null) {
             existingEmployee.setPassword(updatedEmployee.getPassword());
         }
+
+        // 특이사항 메모 업데이트
+        if (updatedEmployee.getSpecialMemo() != null) {
+            existingEmployee.setSpecialMemo(updatedEmployee.getSpecialMemo());
+        }
         
         // 활성 상태 체크 및 퇴사일 설정
         Boolean isActiveUpdated = updatedEmployee.isActive();
@@ -100,6 +122,7 @@ public class EmployeeService {
             // 활성 -> 비활성 변경 (퇴사 처리)
             if (existingEmployee.isActive() && !isActiveUpdated) {
                 existingEmployee.setDeletedAt(LocalDateTime.now());
+                existingEmployee.setEmployeeCode(null); //퇴사시 사원번호 null로 초기화 
                 log.info("Employee {} is now inactive. Setting deleted_at to current time.", id);
             } 
             // 비활성 -> 활성 변경 (복직 처리)
@@ -117,10 +140,15 @@ public class EmployeeService {
 
 
     //직원 id로 메모 조회
-    public EmployeeMemoDto getEmployeeMemo(Long id) {
-        Employee employee = employeeRepository.findById(id)
-            .orElseThrow(() -> new IllegalArgumentException("존재하지 않는 직원입니다. ID: " + id));
-        return new EmployeeMemoDto(employee.getId(), employee.getMemo());
+    public EmployeeMemoDto getEmployeeMemo(String employeeCode) {
+        Employee employee = employeeRepository.findByEmployeeCode(employeeCode)
+            .orElseThrow(() -> new IllegalArgumentException("존재하지 않는 직원입니다. 사원번호: " + employeeCode));
+            
+        if (!employee.isActive()) {
+            throw new IllegalArgumentException("퇴직한 직원입니다. 사원번호: " + employeeCode);
+        }
+            
+        return new EmployeeMemoDto(employee.getId(), employee.getEmployeeCode(), employee.getMemo());
     }
 
 
@@ -131,6 +159,16 @@ public class EmployeeService {
             .orElseThrow(() -> new IllegalArgumentException("존재하지 않는 직원입니다."));
         
         employee.setMemo(memo);
+        return employeeRepository.save(employee);
+    }
+
+    // 특이사항 메모 수정
+    @Transactional
+    public Employee updateSpecialMemo(Long id, String specialMemo) {
+        Employee employee = employeeRepository.findById(id)
+            .orElseThrow(() -> new IllegalArgumentException("존재하지 않는 직원입니다."));
+        
+        employee.setSpecialMemo(specialMemo);
         return employeeRepository.save(employee);
     }
 

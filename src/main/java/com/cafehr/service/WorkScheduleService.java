@@ -5,7 +5,9 @@ import java.time.DayOfWeek;
 import java.time.LocalDateTime;
 import java.time.LocalTime;
 import java.util.ArrayList;
+import java.util.HashMap;
 import java.util.List;
+import java.util.Map;
 
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -39,51 +41,48 @@ public class WorkScheduleService {
             .orElseThrow(() -> new IllegalArgumentException("존재하지 않는 직원입니다."));
 
         List<WorkScheduleDto> workScheduleList = new ArrayList<>();
-
-        // 프론트에서 받은 일정 중복 여부 확인 (같은 요일에 시간이 겹치는 일정이 있는지)
-        // 요일별로 일정을 그룹화
+        
+        // 클라이언트 요청 데이터 디버그 로깅
+        System.out.println("요청된 스케줄 수: " + workScheduleDto.size());
+        for (WorkScheduleDto dto : workScheduleDto) {
+            System.out.println("요일: " + dto.getWorkDay() + 
+                             ", 시작시간: " + dto.getStartTime() + 
+                             ", 종료시간: " + dto.getEndTime());
+        }
+        
+        // 같은 요일의 일정들을 비교하여 시간 겹침 체크 (근무일정등록시 동시에 들어온 중복 근무일정 체크)
         for (int i = 0; i < workScheduleDto.size(); i++) {
-            WorkScheduleDto dto1 = workScheduleDto.get(i);
-            DayOfWeek day1 = dto1.getWorkDay();
-            LocalTime start1 = dto1.getStartTime();
-            LocalTime end1 = dto1.getEndTime();
+            WorkScheduleDto schedule1 = workScheduleDto.get(i);
             
-            // 시작 시간과 종료 시간 유효성 검사
-            if (end1.compareTo(start1) <= 0) {
-                throw new IllegalArgumentException("시작 시간은 종료 시간보다 이전이어야 합니다.");
-            }
-            
-            // 같은 요일의 다른 일정과 비교
-            for (int j = 0; j < i; j++) {
-                WorkScheduleDto dto2 = workScheduleDto.get(j);
+            for (int j = i + 1; j < workScheduleDto.size(); j++) {
+                WorkScheduleDto schedule2 = workScheduleDto.get(j);
                 
-                // 같은 요일이면 시간 겹침 확인
-                if (day1.equals(dto2.getWorkDay())) {
-                    LocalTime start2 = dto2.getStartTime();
-                    LocalTime end2 = dto2.getEndTime();
-                    
+                // 같은 요일인 경우에만 체크
+                if (schedule1.getWorkDay() == schedule2.getWorkDay()) {
                     // 시간 겹침 체크
-                    boolean timeOverlap = 
-                        (start1.compareTo(start2) >= 0 && start1.compareTo(end2) < 0) ||
-                        (end1.compareTo(start2) > 0 && end1.compareTo(end2) <= 0) ||
-                        (start1.compareTo(start2) <= 0 && end1.compareTo(end2) >= 0);
-                    
-                    if (timeOverlap) {
+                    if (schedule1.getStartTime().isBefore(schedule2.getEndTime()) && 
+                        schedule2.getStartTime().isBefore(schedule1.getEndTime())) {
                         throw new IllegalArgumentException(
-                            String.format("같은 요청 내에서 %s에 %s부터 %s까지와 %s부터 %s까지 시간이 겹치는 근무 일정이 있습니다.",
-                                getDayDisplayName(day1),
-                                start2.toString().substring(0, 5),
-                                end2.toString().substring(0, 5),
-                                start1.toString().substring(0, 5),
-                                end1.toString().substring(0, 5)
+                            String.format("%s에 겹치는 근무 시간이 있습니다. (%s-%s와 %s-%s)",
+                                getDayDisplayName(schedule1.getWorkDay()),
+                                schedule1.getStartTime().toString().substring(0, 5),
+                                schedule1.getEndTime().toString().substring(0, 5),
+                                schedule2.getStartTime().toString().substring(0, 5),
+                                schedule2.getEndTime().toString().substring(0, 5)
                             )
                         );
                     }
                 }
             }
         }
-
-        // 각 일정을 개별적으로 처리
+        
+        // 디버그 로깅
+        System.out.println("중복 체크 후 스케줄 수: " + workScheduleDto.size());
+        
+        // 해당 직원의 최신 근무 일정을 한 번만 조회
+        List<WorkSchedule> existingSchedules = workScheduleRepository.findByEmployeeId(employee.getId());
+        
+        // 각 일정을 먼저 모두 검사만 하고 저장은 나중에 수행
         for (WorkScheduleDto dto : workScheduleDto) {
             // 현재 일정의 요일과 시간
             DayOfWeek newDay = dto.getWorkDay();
@@ -95,10 +94,7 @@ public class WorkScheduleService {
                 throw new IllegalArgumentException("시작 시간은 종료 시간보다 이전이어야 합니다.");
             }
             
-            // 해당 직원의 최신 근무 일정을 매번 조회
-            List<WorkSchedule> existingSchedules = workScheduleRepository.findByEmployeeId(employee.getId());
-            
-            // 중복 여부 확인
+            // 새 일정과 기존 일정 중복 여부 확인
             for (WorkSchedule existingSchedule : existingSchedules) {
                 if (existingSchedule.getWorkDay().equals(newDay)) {
                     LocalTime existingStartTime = existingSchedule.getStartTime();
@@ -124,13 +120,16 @@ public class WorkScheduleService {
                     }
                 }
             }
-            
-            // 중복 검사를 통과한 일정 등록
+        }
+        
+        // 모든 검사가 통과했으므로 이제 일정을 저장
+        for (WorkScheduleDto dto : workScheduleDto) {
             WorkSchedule workSchedule = new WorkSchedule();
             workSchedule.setEmployee(employee);
             workSchedule.setWorkDay(dto.getWorkDay());
             workSchedule.setStartTime(dto.getStartTime());
             workSchedule.setEndTime(dto.getEndTime());
+            workSchedule.setBreakTime(dto.getBreakTime());
             workScheduleRepository.save(workSchedule);
             
             workScheduleList.add(dto);
@@ -157,6 +156,7 @@ public class WorkScheduleService {
             dto.setWorkDay(ws.getWorkDay());
             dto.setStartTime(ws.getStartTime());
             dto.setEndTime(ws.getEndTime());
+            dto.setBreakTime(ws.getBreakTime());
             workScheduleList.add(dto);
         }
 
@@ -208,8 +208,15 @@ public class WorkScheduleService {
                 LocalTime startTime = w.getStartTime();
                 LocalTime endTime = w.getEndTime();
                 long minutes = java.time.Duration.between(startTime, endTime).toMinutes();
-                hours = hours.add(BigDecimal.valueOf(minutes).divide(BigDecimal.valueOf(60), 2, BigDecimal.ROUND_HALF_UP));
                 
+                // 휴게시간이 있으면 근무시간에서 차감
+                if (w.getBreakTime() != null) {
+                    // 휴게시간을 분으로 계산 (시간*60 + 분)
+                    long breakMinutes = w.getBreakTime().getHour() * 60 + w.getBreakTime().getMinute();
+                    minutes -= breakMinutes;
+                }
+                
+                hours = hours.add(BigDecimal.valueOf(minutes).divide(BigDecimal.valueOf(60), 2, BigDecimal.ROUND_HALF_UP));
             }
 
 

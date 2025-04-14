@@ -51,18 +51,22 @@
         }
 
         .memo-text {
-            max-width: 150px;
+            max-width: 120px;
             white-space: nowrap;
             overflow: hidden;
             text-overflow: ellipsis;
             cursor: pointer;
             display: inline-block;
+            vertical-align: middle;
         }
         
         .memo-edit-icon {
             cursor: pointer;
-            margin-left: 5px;
             color: #6c757d;
+            margin-left: 5px;
+            font-size: 12px;
+            display: inline-block;
+            vertical-align: middle;
         }
         
         .memo-edit-icon:hover {
@@ -311,13 +315,45 @@
         }
 
         /* 테이블 셀 너비 관리 - 메모 열만 제한 */
+        .employee-table {
+            table-layout: fixed;
+            width: 100%;
+        }
+
         .employee-table th, 
         .employee-table td {
             vertical-align: middle;
+            text-align: center;
+            overflow: hidden;
+            white-space: nowrap;
+            text-overflow: ellipsis;
+        }
+
+        .employee-table .id-col { width: 8%; }
+        .employee-table .employee-code-col { width: 10%; }
+        .employee-table .name-col { width: 7%; }
+        .employee-table .role-col { width: 7%; }
+        .employee-table .wage-col { width: 7%; }
+        .employee-table .status-col { width: 7%; }
+        .employee-table .memo-col { width: 14%; }
+        .employee-table .special-memo-col { width: 14%; }
+        .employee-table .action-col { width: 14%; }
+
+        /* 반응형 테이블 최적화 */
+        .table-responsive {
+            overflow-x: auto;
+            -webkit-overflow-scrolling: touch;
+            max-width: 100%;
         }
         
-        .employee-table .memo-col { 
-            max-width: 150px; /* 메모 열만 제한 */
+        /* 관리 버튼 스타일 개선 */
+        .action-col button {
+            margin-bottom: 5px;
+            min-width: 40px;
+            white-space: nowrap;
+            display: inline-block;
+            padding: 2px 5px;
+            font-size: 0.7rem;
         }
     </style>
 </head>
@@ -363,13 +399,15 @@
             <table class="table table-striped table-hover employee-table" id="employeeTable">
                 <thead class="table-dark">
                     <tr>
-                        <th class="id-col">사번</th>
-                        <th class="name-col">이름</th>
-                        <th class="role-col">직급</th>
-                        <th class="wage-col">시급</th>
-                        <th class="status-col">상태</th>
-                        <th class="memo-col">메모</th>
-                        <th class="action-col">관리</th>
+                        <th class="text-center id-col" style="font-size: 0.90rem;">고유 사원번호</th>
+                        <th class="text-center employee-code-col" style="font-size: 0.90rem;">출퇴근용 사원번호</th>
+                        <th class="text-center name-col">이름</th>
+                        <th class="text-center role-col">직급</th>
+                        <th class="text-center wage-col">시급</th>
+                        <th class="text-center status-col">상태</th>
+                        <th class="text-center memo-col">메모</th>
+                        <th class="text-center special-memo-col">특이사항 메모</th>
+                        <th class="text-center action-col">관리</th>
                     </tr>
                 </thead>
                 <tbody id="employeeTableBody">
@@ -405,6 +443,26 @@
                 <div class="modal-footer">
                     <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">닫기</button>
                     <button type="button" class="btn btn-primary" id="saveMemoBtn">저장</button>
+                </div>
+            </div>
+        </div>
+    </div>
+    
+    <!-- 특이사항 메모 모달 -->
+    <div class="modal fade memo-modal" id="specialMemoModal" tabindex="-1" aria-labelledby="specialMemoModalLabel" aria-hidden="true">
+        <div class="modal-dialog">
+        <div class="modal-content">
+            <div class="modal-header">
+                    <h5 class="modal-title" id="specialMemoModalLabel">직원 특이사항 메모</h5>
+                    <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+            </div>
+            <div class="modal-body">
+                    <textarea id="specialMemoTextArea" class="form-control"></textarea>
+                    <input type="hidden" id="specialMemoEmployeeId">
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">닫기</button>
+                    <button type="button" class="btn btn-primary" id="saveSpecialMemoBtn">저장</button>
                 </div>
             </div>
         </div>
@@ -471,6 +529,7 @@
                                         <th class="text-center" style="width: 25%">요일</th>
                                         <th class="text-center" style="width: 25%">시작 시간</th>
                                         <th class="text-center" style="width: 25%">종료 시간</th>
+                                        <th class="text-center" style="width: 25%">휴게 시간</th>
                                         <th class="text-center" style="width: 25%">관리</th>
                                     </tr>
                                 </thead>
@@ -527,6 +586,27 @@
                             <input type="time" class="form-control form-control-lg" id="endTime" value="18:00" required>
                             <div class="form-text mt-2"><i class="fas fa-info-circle me-1"></i>종료 시간은 시작 시간보다 이후여야 합니다.</div>
                         </div>
+                        
+                        <div class="mb-3">
+                            <label class="form-label fw-bold">휴게 시간</label>
+                            <div class="row">
+                                <div class="col-md-6">
+                                    <div class="form-group">
+                                        <label class="form-label">시간</label>
+                                        <input type="number" class="form-control schedule-break-hours" min="0" max="23" step="1" value="0" onchange="validateBreakTime(this, 'hours')">
+                                        <div class="text-danger break-hours-error" style="display:none;">시간은 0-23 사이의 값만 입력 가능합니다.</div>
+                                    </div>
+                                </div>
+                                <div class="col-md-6">
+                                    <div class="form-group">
+                                        <label class="form-label">분</label>
+                                        <input type="number" class="form-control schedule-break-minutes" min="0" max="59" step="1" value="30" onchange="validateBreakTime(this, 'minutes')">
+                                        <div class="text-danger break-minutes-error" style="display:none;">분은 0-59 사이의 값만 입력 가능합니다.</div>
+                                    </div>
+                                </div>
+                            </div>
+                            <div class="form-text mt-2"><i class="fas fa-info-circle me-1"></i>휴게 시간을 입력하면 근무 시간 계산에 반영됩니다.</div>
+                        </div>
                     </form>
                 </div>
                 <div class="modal-footer">
@@ -573,6 +653,14 @@
                 saveMemo(employeeId, memoText);
             });
             
+            // 특이사항 메모 저장 버튼 이벤트
+            $('#saveSpecialMemoBtn').click(function() {
+                const employeeId = $('#specialMemoEmployeeId').val();
+                const specialMemoText = $('#specialMemoTextArea').val();
+                
+                saveSpecialMemo(employeeId, specialMemoText);
+            });
+            
             // 요일 버튼 클릭 이벤트
             $('.day-button').off('click').on('click', function() {
                 const day = $(this).data('day');
@@ -595,13 +683,96 @@
                     alert('먼저 근무 요일을 선택해주세요.');
                     return;
                 }
-                addScheduleForm();
+                // 현재 선택된 요일을 복사
+                const selectedDaysCopy = {...selectedDays};
+                // 일정 폼 추가
+                addScheduleForm(selectedDaysCopy);
+                // 요일 선택 초기화
+                $('.day-button').removeClass('active');
+                selectedDays = {};
             });
 
             // 근무 일정 저장 버튼 이벤트
             $('#saveWorkScheduleBtn').off('click').on('click', function() {
                 const employeeId = $('#scheduleEmployeeId').val();
                 registerWorkSchedule(employeeId);
+            });
+            
+            // 스케줄 저장 버튼 이벤트 추가
+            $('#saveScheduleBtn').off('click').on('click', function() {
+                const day = $('#workDay').val();
+                const startTime = $('#startTime').val();
+                const endTime = $('#endTime').val();
+                
+                // 필수 값 검증
+                if (!day || !startTime || !endTime) {
+                    alert('요일, 시작 시간, 종료 시간은 필수 입력 항목입니다.');
+                    return;
+                }
+                
+                // 시간 순서 검증
+                if (startTime >= endTime) {
+                    alert('종료 시간은 시작 시간보다 나중이어야 합니다.');
+                    return;
+                }
+                
+                // 브레이크 타임 계산
+                const breakHoursInput = $('#breakHours')[0];
+                const breakMinutesInput = $('#breakMinutes')[0];
+                
+                // 유효성 검사
+                const isHoursValid = validateBreakTime(breakHoursInput, 'hours');
+                const isMinutesValid = validateBreakTime(breakMinutesInput, 'minutes');
+                
+                if (!isHoursValid || !isMinutesValid) {
+                    return; // 유효하지 않으면 중단
+                }
+                
+                const breakHours = parseInt(breakHoursInput.value) || 0;
+                const breakMinutes = parseInt(breakMinutesInput.value) || 0;
+                
+                // HH:MM 형식의 문자열로 변환 (백엔드의 LocalTime 형식에 맞춤)
+                const breakTime = (breakHours > 0 || breakMinutes > 0) ? 
+                    String(breakHours).padStart(2, '0') + ':' + String(breakMinutes).padStart(2, '0') : null;
+                
+                // AJAX 요청
+                $.ajax({
+                    url: '/api/work-schedule',
+                    type: 'POST',
+                    contentType: 'application/json',
+                    data: JSON.stringify([{
+                        employeeId: employeeId,
+                        workDay: day,
+                        startTime: startTime,
+                        endTime: endTime,
+                        breakTime: breakTime
+                    }]),
+                    success: function(response) {
+                        // 모달 닫기
+                        $('#addScheduleModal').modal('hide');
+                        
+                        // 성공 메시지 표시
+                        $('#scheduleErrorContainer').hide();
+                        $('#scheduleSuccessMessage').html('근무 일정이 성공적으로 등록되었습니다.').show();
+                        
+                        // 일정 목록 새로고침
+                        loadEmployeeSchedules(employeeId);
+                    },
+                    error: function(xhr, status, error) {
+                        // 오류 메시지 표시
+                        let errorMessage = '근무 일정 등록에 실패했습니다.';
+                        if (xhr.responseJSON && xhr.responseJSON.message) {
+                            errorMessage = xhr.responseJSON.message;
+                        }
+                        
+                        $('#scheduleErrorContainer').html('<div class="alert alert-danger alert-dismissible" role="alert">' +
+                            errorMessage +
+                            '<button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>' +
+                            '</div>').show();
+                        
+                        console.error('API 오류:', error);
+                    }
+                });
             });
         });
         
@@ -611,7 +782,7 @@
             const statusFilter = $('#statusFilter').val();
             
             // 로딩 메시지 표시
-            $('#employeeTableBody').html('<tr><td colspan="7" class="text-center">직원 정보를 불러오는 중...</td></tr>');
+            $('#employeeTableBody').html('<tr><td colspan="9" class="text-center">직원 정보를 불러오는 중...</td></tr>');
             
             $.ajax({
                 url: '/api/employees',
@@ -640,7 +811,7 @@
                     displayEmployees(filteredData);
                 },
                 error: function(xhr, status, error) {
-                    $('#employeeTableBody').html('<tr><td colspan="7" class="text-center text-danger">직원 정보를 불러오는데 실패했습니다.</td></tr>');
+                    $('#employeeTableBody').html('<tr><td colspan="9" class="text-center text-danger">직원 정보를 불러오는데 실패했습니다.</td></tr>');
                     console.error('API 오류:', error);
                 }
             });
@@ -652,7 +823,7 @@
             tableBody.empty();
             
             if (employees.length === 0) {
-                tableBody.html('<tr><td colspan="7" class="text-center">조회된 직원이 없습니다.</td></tr>');
+                tableBody.html('<tr><td colspan="9" class="text-center">조회된 직원이 없습니다.</td></tr>');
                 return;
             }
             
@@ -660,6 +831,7 @@
                 const row = $('<tr>');
                 
                 row.append($('<td>').text(employee.id));
+                row.append($('<td>').text(employee.employeeCode || '-'));
                 row.append($('<td>').text(employee.name));
                 row.append($('<td>').append(createRoleBadge(employee.role)));
                 row.append($('<td>').text(formatCurrency(employee.hourlyWage) + '원'));
@@ -667,7 +839,7 @@
                 
                 // 메모 셀 추가
                 const memoCell = $('<td class="memo-col">');
-                const memoContent = $('<span class="memo-text">').text(employee.memo || '(메모 없음)');
+                const memoContent = $('<span class="memo-text">').text(employee.memo ? employee.memo : '-');
                 const memoEditIcon = $('<i class="fas fa-edit memo-edit-icon">');
                 
                 memoContent.click(function() {
@@ -681,20 +853,35 @@
                 memoCell.append(memoContent).append(memoEditIcon);
                 row.append(memoCell);
                 
+                // 특이사항 메모 셀 추가
+                const specialMemoCell = $('<td class="special-memo-col">');
+                const specialMemoContent = $('<span class="memo-text">').text(employee.specialMemo ? employee.specialMemo : '-');
+                const specialMemoEditIcon = $('<i class="fas fa-edit memo-edit-icon">');
+                
+                specialMemoContent.click(function() {
+                    openSpecialMemoModal(employee.id, employee.specialMemo);
+                });
+                
+                specialMemoEditIcon.click(function() {
+                    openSpecialMemoModal(employee.id, employee.specialMemo);
+                });
+                
+                specialMemoCell.append(specialMemoContent).append(specialMemoEditIcon);
+                row.append(specialMemoCell);
+                
                 // 관리 버튼
                 const actionCell = $('<td>');
-                const editBtn = $('<button class="btn btn-sm btn-primary me-1">').html('<i class="fas fa-edit"></i>');
+                const editBtn = $('<button class="btn btn-sm btn-primary me-1" title="직원 정보 수정">').html('<i class="fas fa-edit"></i>');
                 editBtn.click(function() {
                     window.location.href = '/employeeedit/' + employee.id;
                 });
                 
-                const scheduleBtn = $('<button class="btn btn-sm btn-info me-1">').html('<i class="fas fa-calendar-alt"></i>');
+                const scheduleBtn = $('<button class="btn btn-sm btn-info" title="근무 스케줄 관리">').html('<i class="fas fa-calendar-alt"></i>');
                 scheduleBtn.click(function() {
                     openScheduleModal(employee.id, employee.name);
                 });
                 
-                actionCell.append(editBtn);
-                actionCell.append(scheduleBtn);
+                actionCell.append(editBtn).append(scheduleBtn);
                 row.append(actionCell);
                 
                 tableBody.append(row);
@@ -706,6 +893,13 @@
             $('#memoEmployeeId').val(employeeId);
             $('#memoTextArea').val(memo || '');
             $('#memoModal').modal('show');
+        }
+        
+        // 특이사항 메모 모달 열기 함수
+        function openSpecialMemoModal(employeeId, specialMemo) {
+            $('#specialMemoEmployeeId').val(employeeId);
+            $('#specialMemoTextArea').val(specialMemo || '');
+            $('#specialMemoModal').modal('show');
         }
         
         // 메모 저장 함수
@@ -721,6 +915,24 @@
                 },
                 error: function(xhr, status, error) {
                     alert('메모 저장에 실패했습니다.');
+                    console.error('API 오류:', error);
+                }
+            });
+        }
+        
+        // 특이사항 메모 저장 함수
+        function saveSpecialMemo(employeeId, specialMemo) {
+            $.ajax({
+                url: '/api/employees/specialMemo/' + employeeId,
+                type: 'PATCH',
+                contentType: 'application/json',
+                data: JSON.stringify({ specialMemo: specialMemo }),
+                success: function(response) {
+                    $('#specialMemoModal').modal('hide');
+                    loadEmployees(); // 목록 새로고침
+                },
+                error: function(xhr, status, error) {
+                    alert('특이사항 메모 저장에 실패했습니다.');
                     console.error('API 오류:', error);
                 }
             });
@@ -791,9 +1003,9 @@
         }
         
         // 근무 일정 폼 추가 함수
-        function addScheduleForm() {
+        function addScheduleForm(selectedDaysCopy) {
             const scheduleId = 'schedule_' + Date.now();
-            const activeDays = Object.keys(selectedDays);
+            const activeDays = selectedDaysCopy ? Object.keys(selectedDaysCopy) : Object.keys(selectedDays);
             
             let scheduleHTML = '<div class="schedule-item" id="' + scheduleId + '">';
             scheduleHTML += '<div class="d-flex justify-content-between align-items-center mb-3">';
@@ -819,6 +1031,31 @@
             scheduleHTML += '</div>';
             scheduleHTML += '</div>';
             
+            scheduleHTML += '<div class="row">';
+            scheduleHTML += '<div class="col-md-6">';
+            scheduleHTML += '<div class="form-group mb-3">';
+            scheduleHTML += '<label class="form-label fw-bold">휴게 시간</label>';
+            scheduleHTML += '<div class="row">';
+            scheduleHTML += '<div class="col-md-6">';
+            scheduleHTML += '<div class="form-group">';
+            scheduleHTML += '<label class="form-label">시간</label>';
+            scheduleHTML += '<input type="number" class="form-control schedule-break-hours" min="0" max="23" step="1" value="0" onchange="validateBreakTime(this, \'hours\')">';
+            scheduleHTML += '<div class="text-danger break-hours-error" style="display:none;">시간은 0-23 사이의 값만 입력 가능합니다.</div>';
+            scheduleHTML += '</div>';
+            scheduleHTML += '</div>';
+            scheduleHTML += '<div class="col-md-6">';
+            scheduleHTML += '<div class="form-group">';
+            scheduleHTML += '<label class="form-label">분</label>';
+            scheduleHTML += '<input type="number" class="form-control schedule-break-minutes" min="0" max="59" step="1" value="30" onchange="validateBreakTime(this, \'minutes\')">';
+            scheduleHTML += '<div class="text-danger break-minutes-error" style="display:none;">분은 0-59 사이의 값만 입력 가능합니다.</div>';
+            scheduleHTML += '</div>';
+            scheduleHTML += '</div>';
+            scheduleHTML += '</div>';
+            scheduleHTML += '<div class="form-text">휴게 시간을 입력하면 근무 시간 계산에 반영됩니다.</div>';
+            scheduleHTML += '</div>';
+            scheduleHTML += '</div>';
+            scheduleHTML += '</div>';
+            
             scheduleHTML += '<div class="schedule-days-selected">';
             scheduleHTML += '<label class="form-label fw-bold"><i class="fas fa-calendar-day me-2"></i>적용 요일</label>';
             scheduleHTML += '<div class="d-flex flex-wrap gap-2 mt-2">';
@@ -832,6 +1069,9 @@
                 'SATURDAY': '토요일',
                 'SUNDAY': '일요일'
             };
+            
+            // 일정에 적용될 요일 데이터 속성 추가
+            scheduleHTML += '<input type="hidden" class="selected-days-data" value=\'' + JSON.stringify(activeDays) + '\'>';
             
             activeDays.forEach(day => {
                 const dayName = dayNameMap[day] || day;
@@ -854,13 +1094,13 @@
         function loadEmployeeSchedules(employeeId) {
             // 직원 ID 검증
             if (!employeeId) {
-                $('#scheduleTableBody').html('<tr><td colspan="4" class="text-center text-danger">직원 정보가 유효하지 않습니다.</td></tr>');
+                $('#scheduleTableBody').html('<tr><td colspan="5" class="text-center text-danger">직원 정보가 유효하지 않습니다.</td></tr>');
                 $('#noScheduleMessage').show();
                 return;
             }
             
             // 로딩 메시지 표시
-            $('#scheduleTableBody').html('<tr><td colspan="4" class="text-center">스케줄을 불러오는 중...</td></tr>');
+            $('#scheduleTableBody').html('<tr><td colspan="5" class="text-center">스케줄을 불러오는 중...</td></tr>');
             $('#noScheduleMessage').hide();
             
             $.ajax({
@@ -871,7 +1111,7 @@
                     if (response && response.length > 0) {
                         displaySchedules(response);
                     } else {
-                        $('#scheduleTableBody').html('<tr><td colspan="4" class="text-center">등록된 스케줄이 없습니다.</td></tr>');
+                        $('#scheduleTableBody').html('<tr><td colspan="5" class="text-center">등록된 스케줄이 없습니다.</td></tr>');
                         $('#noScheduleMessage').show();
                     }
                 },
@@ -879,10 +1119,10 @@
                     // 오류 발생 시 직원 정보 재확인 시도
                     tryVerifyEmployeeExists(employeeId, function(exists) {
                         if (exists) {
-                            $('#scheduleTableBody').html('<tr><td colspan="4" class="text-center">등록된 스케줄이 없습니다.</td></tr>');
+                            $('#scheduleTableBody').html('<tr><td colspan="5" class="text-center">등록된 스케줄이 없습니다.</td></tr>');
                             $('#noScheduleMessage').show();
                         } else {
-                            $('#scheduleTableBody').html('<tr><td colspan="4" class="text-center text-danger">직원 정보를 찾을 수 없습니다.</td></tr>');
+                            $('#scheduleTableBody').html('<tr><td colspan="5" class="text-center text-danger">직원 정보를 찾을 수 없습니다.</td></tr>');
                             $('#noScheduleMessage').hide();
                         }
                     });
@@ -913,7 +1153,7 @@
             
             if (!schedules || schedules.length === 0) {
                 $('#noScheduleMessage').show();
-                tableBody.html('<tr><td colspan="4" class="text-center">등록된 스케줄이 없습니다.</td></tr>');
+                tableBody.html('<tr><td colspan="5" class="text-center">등록된 스케줄이 없습니다.</td></tr>');
                 return;
             }
             
@@ -966,6 +1206,16 @@
                     const endTimeCell = $('<td class="text-center align-middle">').append(endTimeBadge);
                     row.append(endTimeCell);
                     
+                    // 휴게 시간 추가
+                    let breakTimeText = '-';
+                    if (schedule.breakTime) {
+                        const breakTime = formatTimeDisplay(schedule.breakTime, 'break');
+                        breakTimeText = breakTime;
+                    }
+                    const breakTimeBadge = $('<span class="badge bg-info">').text(breakTimeText);
+                    const breakTimeCell = $('<td class="text-center align-middle">').append(breakTimeBadge);
+                    row.append(breakTimeCell);
+                    
                     // 관리 버튼
                     const actionCell = $('<td class="text-center align-middle">');
                     const deleteBtn = $('<button class="btn btn-outline-danger delete-btn">').html('<i class="fas fa-trash me-1"></i>삭제');
@@ -983,13 +1233,42 @@
             } catch (error) {
                 console.error('스케줄 표시 오류:', error);
                 $('#noScheduleMessage').show();
-                tableBody.html('<tr><td colspan="4" class="text-center text-danger">스케줄 데이터 처리 중 오류가 발생했습니다.</td></tr>');
+                tableBody.html('<tr><td colspan="5" class="text-center text-danger">스케줄 데이터 처리 중 오류가 발생했습니다.</td></tr>');
             }
         }
         
         // 시간 표시 형식 변환 함수
-        function formatTimeDisplay(timeValue) {
+        function formatTimeDisplay(timeValue, type) {
             try {
+                // 휴게 시간 (HH:MM 형식 문자열)인 경우
+                if (type === 'break' && typeof timeValue === 'string' && timeValue.includes(':')) {
+                    const [hours, minutes] = timeValue.split(':').map(part => parseInt(part, 10));
+                    
+                    if (hours > 0 && minutes > 0) {
+                        return hours + '시간 ' + minutes + '분';
+                    } else if (hours > 0) {
+                        return hours + '시간';
+                    } else if (minutes > 0) {
+                        return minutes + '분';
+                    }
+                    return '0분';
+                }
+                
+                // 휴게 시간 (분)인 경우 시간과 분으로 변환
+                if (type === 'break' && typeof timeValue === 'number') {
+                    const hours = Math.floor(timeValue / 60);
+                    const minutes = timeValue % 60;
+                    
+                    if (hours > 0 && minutes > 0) {
+                        return hours + '시간 ' + minutes + '분';
+                    } else if (hours > 0) {
+                        return hours + '시간';
+                    } else if (minutes > 0) {
+                        return minutes + '분';
+                    }
+                    return '0분';
+                }
+                
                 // timeValue가 배열인 경우 (예: [9, 0])
                 if (Array.isArray(timeValue)) {
                     if (timeValue.length >= 2) {
@@ -1020,123 +1299,109 @@
         
         // 근무 일정 등록 함수
         function registerWorkSchedule(employeeId) {
-            // 근무 일정 데이터 수집
+            // 스케줄 항목 검증
+            const scheduleItems = $('.schedule-item');
+            if (scheduleItems.length === 0) {
+                alert('등록할 근무 일정이 없습니다. 먼저 근무 일정을 추가해주세요.');
+                return;
+            }
+            
             const workSchedules = [];
+            let isValid = true;
             
-            // 요일 한글명 매핑 (오류 메시지 표시용)
-            const dayKoreanMap = {
-                'MONDAY': '월요일',
-                'TUESDAY': '화요일',
-                'WEDNESDAY': '수요일',
-                'THURSDAY': '목요일',
-                'FRIDAY': '금요일',
-                'SATURDAY': '토요일',
-                'SUNDAY': '일요일'
-            };
-            
-            // 스케줄 아이템에서 시간 정보 추출
-            $('.schedule-item').each(function() {
+            scheduleItems.each(function() {
                 const startTime = $(this).find('.schedule-start-time').val();
                 const endTime = $(this).find('.schedule-end-time').val();
                 
-                // 기본 유효성 검사만 프론트엔드에서 수행
+                // 시간 입력 검증
                 if (!startTime || !endTime) {
                     alert('시작 시간과 종료 시간을 모두 입력해주세요.');
-                    return false;
+                    isValid = false;
+                    return false; // each 루프 종료
                 }
                 
+                // 시간 순서 검증
                 if (startTime >= endTime) {
-                    alert('종료 시간은 시작 시간보다 이후여야 합니다.');
+                    alert('종료 시간은 시작 시간보다 나중이어야 합니다.');
+                    isValid = false;
+                    return false; // each 루프 종료
+                }
+                
+                // 선택된 요일 데이터 가져오기
+                const selectedDaysData = $(this).find('.selected-days-data').val();
+                const selectedDaysList = JSON.parse(selectedDaysData);
+                
+                if (selectedDaysList.length === 0) {
+                    alert('요일을 선택해야 합니다.');
+                    isValid = false;
                     return false;
                 }
                 
-                // 요일 버튼에서 선택된 모든 요일 사용
-                Object.keys(selectedDays).forEach(day => {
+                // 각 선택된 요일에 대한 근무 일정 생성
+                selectedDaysList.forEach(day => {
+                    const breakHoursInput = $(this).find('.schedule-break-hours');
+                    const breakMinutesInput = $(this).find('.schedule-break-minutes');
+                    
+                    // 유효성 검사
+                    const isHoursValid = validateBreakTime(breakHoursInput[0], 'hours');
+                    const isMinutesValid = validateBreakTime(breakMinutesInput[0], 'minutes');
+                    
+                    if (!isHoursValid || !isMinutesValid) {
+                        isValid = false;
+                        return false; // 루프 종료
+                    }
+                    
+                    const breakHours = parseInt(breakHoursInput.val() || 0);
+                    const breakMinutes = parseInt(breakMinutesInput.val() || 0);
+                    
+                    // HH:MM 형식의 문자열로 변환 (백엔드의 LocalTime 형식에 맞춤)
+                    const breakTime = (breakHours > 0 || breakMinutes > 0) ? 
+                        String(breakHours).padStart(2, '0') + ':' + String(breakMinutes).padStart(2, '0') : null;
+                    
                     workSchedules.push({
-                        employeeId: parseInt(employeeId),
+                        employeeId: employeeId,
                         workDay: day,
                         startTime: startTime,
-                        endTime: endTime
+                        endTime: endTime,
+                        breakTime: breakTime
                     });
                 });
             });
             
-            // 스케줄이 없으면 함수 종료
-            if (workSchedules.length === 0) {
-                alert('등록할 근무 일정이 없습니다.');
-                return;
-            }
+            if (!isValid) return;
             
-            console.log('등록할 스케줄:', workSchedules);
-            
-            // 근무 일정 등록 AJAX 요청 - 백엔드에서 모든 중복 체크 수행
+            // 스케줄 저장 요청
             $.ajax({
                 url: '/api/work-schedule',
                 type: 'POST',
                 contentType: 'application/json',
                 data: JSON.stringify(workSchedules),
                 success: function(response) {
-                    loadEmployeeSchedules(employeeId);
-                    
                     // 성공 메시지 표시
-                    const successHTML = 
-                    '<div class="alert alert-success alert-dismissible fade show mt-3" role="alert">' +
-                        '<strong><i class="fas fa-check-circle me-2"></i>근무 일정이 성공적으로 등록되었습니다.</strong>' +
-                        '<button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>' +
-                    '</div>';
-                    
-                    // 오류 메시지 컨테이너를 숨기고 성공 메시지 표시
                     $('#scheduleErrorContainer').hide();
-                    $('#scheduleSuccessMessage').html(successHTML);
+                    $('#scheduleSuccessMessage').html('근무 일정이 성공적으로 등록되었습니다.').show();
                     
-                    // 입력 필드 초기화
+                    // 입력 폼 초기화
                     selectedDays = {};
                     $('.day-button').removeClass('active');
                     $('#scheduleList').empty();
                     
-                    // 스크롤 이동
-                    $('#scheduleModal').scrollTop(0);
+                    // 일정 목록 새로고침
+                    loadEmployeeSchedules(employeeId);
                 },
                 error: function(xhr, status, error) {
-                    // 오류 메시지 처리
-                    let errorMessage = '근무 스케줄 저장에 실패했습니다.';
-                    
-                    try {
-                        // 응답이 JSON 형식인지 확인
-                        if (xhr.responseText && xhr.getResponseHeader('content-type') && 
-                            xhr.getResponseHeader('content-type').includes('application/json')) {
-                            
-                            const response = JSON.parse(xhr.responseText);
-                            if (response.message) {
-                                errorMessage = response.message;
-                            }
-                        } else {
-                            // JSON이 아닌 경우 직접 정규식으로 추출
-                            const pattern = /([월화수목금토일]요일에\s*이미\s*[\d:]+부터\s*[\d:]+까지\s*근무\s*일정이\s*존재합니다.*?겹치는\s*근무일정)/;
-                            const match = xhr.responseText.match(pattern);
-                            
-                            if (match && match[1]) {
-                                errorMessage = match[1];
-                            } else {
-                                // 두 번째 패턴 시도 - "같은 요청 내에서" 메시지 추출
-                                const pattern2 = /(같은\s*요청\s*내에서\s*[월화수목금토일]요일에\s*[\d:]+부터\s*[\d:]+까지와\s*[\d:]+부터\s*[\d:]+까지\s*시간이\s*겹치는\s*근무\s*일정이\s*있습니다)/;
-                                const match2 = xhr.responseText.match(pattern2);
-                                
-                                if (match2 && match2[1]) {
-                                    errorMessage = match2[1];
-                                }
-                            }
-                        }
-                    } catch (e) {
-                        console.error('응답 파싱 오류:', e);
+                    // 오류 메시지 표시
+                    let errorMessage = '근무 일정 등록에 실패했습니다.';
+                    if (xhr.responseJSON && xhr.responseJSON.message) {
+                        errorMessage = xhr.responseJSON.message;
                     }
                     
-                    // 오류 메시지 표시
-                    $('#scheduleErrorMessage').text(errorMessage);
-                    $('#scheduleErrorContainer').show();
+                    $('#scheduleErrorContainer').html('<div class="alert alert-danger alert-dismissible" role="alert">' +
+                        errorMessage +
+                        '<button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>' +
+                        '</div>').show();
                     
-                    // 스크롤 이동
-                    $('#scheduleModal').scrollTop(0);
+                    console.error('API 오류:', error);
                 }
             });
         }
@@ -1252,6 +1517,40 @@
                     alert('직원 삭제 실패: ' + errorMessage);
                 }
             });
+        }
+
+        // 시간 유효성 검사 함수
+        function validateBreakTime(input, type) {
+            const value = parseInt(input.value) || 0;
+            const errorElement = $(input).siblings('.break-' + type + '-error');
+            let isValid = true;
+            
+            if (type === 'hours') {
+                if (value < 0 || value > 23) {
+                    errorElement.show();
+                    isValid = false;
+                } else {
+                    errorElement.hide();
+                }
+            } else if (type === 'minutes') {
+                if (value < 0 || value > 59) {
+                    errorElement.show();
+                    isValid = false;
+                } else {
+                    errorElement.hide();
+                }
+            }
+            
+            if (!isValid) {
+                // 잘못된 값이 입력되면 유효한 범위 내 값으로 설정
+                if (type === 'hours') {
+                    input.value = Math.min(23, Math.max(0, value));
+                } else if (type === 'minutes') {
+                    input.value = Math.min(59, Math.max(0, value));
+                }
+            }
+            
+            return isValid;
         }
     </script>
 </body>

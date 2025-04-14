@@ -37,7 +37,7 @@ public class Salary {
     private String month; // yyyy-MM (2025-03)
 
     @Column(name = "total_hours", nullable = false, precision = 5, scale = 2)
-    private BigDecimal totalHours; // 총 근무 시간
+    private BigDecimal totalHours; // 실제 근무 시간
 
     @Column(name = "base_salary", nullable = false, precision = 10, scale = 2)
     private BigDecimal baseSalary; // 기본 월급 (시급 * 근무시간)
