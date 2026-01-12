@@ -1,4 +1,4 @@
-package com.example.cafeHR;
+package com.cafehr;
 
 import org.junit.jupiter.api.Test;
 import org.springframework.boot.test.context.SpringBootTest;

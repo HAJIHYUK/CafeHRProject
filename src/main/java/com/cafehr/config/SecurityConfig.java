@@ -71,8 +71,8 @@ public class SecurityConfig {
     @Bean
     public InMemoryUserDetailsManager userDetailsManager() {
         UserDetails admin = User.builder()
-            .username("kayoung6768")
-            .password(passwordEncoder().encode("rkddl1109"))
+            .username("admin")
+            .password(passwordEncoder().encode("admin"))
             .roles("ADMIN")
             .build();
         
