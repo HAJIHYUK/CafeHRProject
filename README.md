@@ -10,6 +10,13 @@
 
 <br>
 
+> 🚨 **잠깐만요! 코드를 보시기 전에 꼭 읽어주세요.** 
+> 이 프로젝트는 제가 백엔드와 스프링 부트의 기초를 막 다지던 시기에 작성한 초기 포트폴리오입니다. 
+> 지금 다시 객체지향 설계와 클린 아키텍처의 관점에서 보니 부족한 점이 너무나도 많이 보이지만, 당시 저의 치열했던 고민과 노력의 흔적이기에 원본 그대로 남겨두었습니다.
+> 코드를 보시기 전에 하단의 **[💡 프로젝트 회고 및 리팩토링 계획](#-프로젝트-회고-및-리팩토링-계획)**을 먼저 읽어주시면 감사하겠습니다!
+
+<br>
+
 ## 📱 프로젝트 소개
 **CafeHR**은 카페 및 소규모 매장에서 빈번하게 발생하는 **근태 관리의 번거로움**과 **복잡한 급여 계산(주휴수당)** 문제를 해결하기 위해 개발된 통합 관리 시스템입니다. 
 매장 내 태블릿/PC를 키오스크처럼 활용하여 직원은 간편하게 출퇴근을 찍고, 관리자는 대시보드를 통해 모든 현황을 한눈에 파악할 수 있습니다.
@@ -123,29 +130,33 @@
 
 <br>
 
-## 🏗 시스템 아키텍처 (Architecture)
+## 💡 프로젝트 회고 및 리팩토링 계획
 
-```mermaid
-graph LR
-    User["Store Staff / Manager"] --> Browser["Web Browser (JSP)"]
-    Browser --> Controller["Spring MVC Controller"]
-    
-    subgraph Backend [Spring Boot]
-        Controller --> Security["Spring Security"]
-        Controller --> Service["Business Logic Layer"]
-        Service --> Repository["JPA Repository"]
-    end
-    
-    subgraph Database
-        Repository --> MySQL[("MySQL DB")]
-    end
+이 프로젝트는 복잡한 주휴수당 계산 로직을 직접 구현해보며 자바(Java)와 스프링(Spring)에 대한 이해도를 크게 높여준 뜻깊은 첫 결과물입니다. 하지만 이후 객체지향 설계와 아키텍처에 대해 지속적으로 공부하며 성장한 지금 다시 코드를 보니, 당시에는 미처 몰랐던 많은 설계적 결함들이 눈에 띕니다. 코드 전체를 다시 짜기보다는, 과거의 제가 어떤 부분에서 부족했고 이를 앞으로 어떻게 리팩토링할 것인지 남기고자 합니다.
 
-    subgraph Core_Services
-        Service --> AS["AttendanceService<br>(Time Tracking)"]
-        Service --> SS["SalaryService<br>(Bonus Calculation)"]
-        Service --> ES["EmployeeService"]
-    end
-```
+### 1. 비대해진 Service 계층과 도메인 지식 누수
+*   **아쉬운 점:** `SalaryService` 파일 하나가 무려 600줄에 달하며 SRP(단일 책임 원칙)를 크게 위반하고 있습니다. 주휴수당 계산 로직, 날짜를 주(Week) 단위로 쪼개는 로직, DB 조회 로직이 전부 한 곳에 얽혀 있어 유지보수가 극히 어렵습니다.
+*   **리팩토링 계획:** 주휴수당 계산기(`HolidayBonusCalculator`)와 주 단위 파서(`WeekParser`) 등을 별도의 도메인 서비스로 분리하여, 서비스 클래스는 흐름(Flow)만 제어하도록 쪼갤 계획입니다.
+
+### 2. 빈약한 도메인 모델(Anemic Domain Model)과 무분별한 Setter
+*   **아쉬운 점:** `Employee`, `Salary` 등 엔티티 클래스에 `@Setter`가 전면 개방되어 있고, 엔티티 내부에는 비즈니스 로직이 전혀 없습니다. 엔티티가 단순한 DTO 역할만 하고 있습니다.
+*   **리팩토링 계획:** 무분별한 `@Setter`를 닫고, 상태 변경이 필요한 곳에는 `calculateTotalSalary()`나 `updateWage()`처럼 의미 있는 엔티티 내부 메서드를 구현하여 캡슐화를 강화할 것입니다.
+
+### 3. @Transactional의 잘못된 트랜잭션 경계 설정
+*   **아쉬운 점:** 전체 직원 급여를 계산하는 `calculateAllSalariesForMonth()`를 보면 바깥쪽 메서드에도 `@Transactional`이 걸려 있고 안쪽에도 걸려 있는데, 반복문 안에서 예외를 단순히 `try-catch`로 무시하려 하고 있습니다. 이는 스프링에서 `UnexpectedRollbackException`을 유발할 수 있는 위험한 설계입니다.
+*   **리팩토링 계획:** 트랜잭션 전파(Propagation) 속성에 대한 이해를 바탕으로, 개별 급여 계산이 실패해도 다른 직원 급여 계산에 영향을 주지 않도록 트랜잭션 경계를 명확히 분리할 계획입니다.
+
+### 4. 중복 코드 (DRY 원칙 위반)
+*   **아쉬운 점:** `SalaryService` 내부에 `calculateWeeklyHours`와 `calculateExpectedWeeklyHours`라는 두 메서드가 사실상 거의 동일한 반복문과 달력 파싱 로직을 중복으로 들고 있습니다.
+*   **리팩토링 계획:** 공통된 날짜 계산 로직을 별도의 유틸리티나 도메인 객체로 추출하여 재사용성을 높이고 중복 코드를 제거할 것입니다.
+
+### 5. REST API 설계 오류 (행위가 포함된 URL)
+*   **아쉬운 점:** `AttendanceRestController`의 엔드포인트를 보면 `/api/attendance/modify/{id}`, `/api/attendance/delete/{id}` 처럼 URL에 행위(동사)가 포함되어 있습니다. 이는 자원(Resource) 중심의 RESTful 원칙에 어긋나는 전형적인 초보적 실수입니다.
+*   **리팩토링 계획:** HTTP 메서드(PUT, DELETE 등)의 의미를 올바르게 활용하여 `/api/attendance/{id}` 처럼 명사 중심의 깔끔한 REST API로 재설계할 예정입니다.
+
+### 6. Controller 계층의 예외 처리 중복 (`@RestControllerAdvice` 활용 미흡)
+*   **아쉬운 점:** 컨트롤러 곳곳에 비즈니스 예외(`IllegalArgumentException` 등)를 잡기 위한 `try-catch` 블록이 중복되어 있으며, 에러를 `Map`에 담아 리턴하는 등 응답 포맷이 파편화되어 있습니다.
+*   **리팩토링 계획:** `@RestControllerAdvice`를 활용해 전역 예외 처리기(Global Exception Handler)로 에러 핸들링 로직을 한 곳에 모으고, 커스텀 예외 클래스와 `CommonResponse` 공통 응답 봉투(Envelope)를 도입하여 프론트엔드와 일관된 규약으로 통신하도록 개선할 것입니다.
 
 <br>
 
@@ -158,7 +169,7 @@ graph LR
 ### Installation
 1.  **Clone Repository**
     ```bash
-    git clone https://github.com/your-repo/cafeHR.git
+    git clone https://github.com/HAJIHYUK/CafeHRProject.git
     ```
 2.  **Configure Database** (`src/main/resources/application.properties`)
     ```properties
@@ -181,5 +192,5 @@ graph LR
 ---
 
 <div align="center">
-  <p>Created by <b>Lee Kayoung</b> | Powered by Spring Boot 3 & JSP</p>
+  <p>Created by <b>HAJIHYUK</b> | Powered by Spring Boot 3 & JSP</p>
 </div>
